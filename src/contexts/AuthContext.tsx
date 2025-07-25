@@ -42,14 +42,20 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       const response = await apiService.login(credentials);
       
       if (response.success && response.data) {
-        const { user: userData, token } = response.data;
-        
+        let { user: userData, token } = response.data;
+        // Mapeamento de roles do backend para o frontend
+        const roleMap: Record<string, string> = {
+          ADMIN: 'ADMINISTRADOR',
+          MOTORISTA: 'MOTORISTA',
+          SUPERVISOR: 'SUPERVISOR',
+          OPERADOR: 'OPERADOR',
+          CLIENTE: 'CLIENTE',
+        };
+        userData = { ...userData, role: roleMap[userData.role] || userData.role };
         // Store auth data
         localStorage.setItem('id_transporte_token', token);
         localStorage.setItem('id_transporte_user', JSON.stringify(userData));
-        
         setUser(userData);
-        
         toast({
           title: "Login realizado com sucesso!",
           description: `Bem-vindo(a), ${userData.name}!`,

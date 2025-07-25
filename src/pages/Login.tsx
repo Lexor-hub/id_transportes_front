@@ -81,7 +81,7 @@ export const Login = () => {
                       placeholder="Digite seu usuário ou CPF"
                       value={credentials.username}
                       onChange={(e) => setCredentials(prev => ({ ...prev, username: e.target.value }))}
-                      className="pl-10"
+                      className="pl-10 w-full min-h-[44px] text-base"
                       required
                     />
                   </div>
@@ -98,7 +98,7 @@ export const Login = () => {
                       placeholder="Digite sua senha"
                       value={credentials.password}
                       onChange={(e) => setCredentials(prev => ({ ...prev, password: e.target.value }))}
-                      className="pl-10"
+                      className="pl-10 w-full min-h-[44px] text-base"
                       required
                     />
                   </div>
@@ -106,7 +106,7 @@ export const Login = () => {
 
                 <Button 
                   type="submit" 
-                  className="w-full bg-gradient-primary hover:opacity-90 transition-opacity" 
+                  className="w-full min-h-[44px] text-base" 
                   disabled={loading}
                 >
                   {loading ? (

@@ -121,10 +121,25 @@ const Vehicles: React.FC = () => {
     v.model.toLowerCase().includes(search.toLowerCase())
   );
 
+  const PAGE_SIZE = 10;
+  const exportToCSV = (data: Vehicle[], filename: string) => {
+    if (!data.length) return;
+    const csv = [Object.keys(data[0]).join(','), ...data.map(row => Object.values(row).join(','))].join('\n');
+    const blob = new Blob([csv], { type: 'text/csv' });
+    const url = window.URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = filename;
+    a.click();
+    window.URL.revokeObjectURL(url);
+  };
+  const [page, setPage] = useState(1);
+  const paginatedVehicles = filteredVehicles.slice((page-1)*PAGE_SIZE, page*PAGE_SIZE);
+
   return (
     <div className="min-h-screen bg-background">
       <Header />
-      <div className="container mx-auto px-6 py-6">
+      <div className="container mx-auto px-4 md:px-6 py-6">
         <div className="flex items-center justify-between mb-4">
           <h1 className="text-2xl font-bold">Gerenciamento de Veículos</h1>
           <form onSubmit={e => { e.preventDefault(); }} className="flex gap-2">
@@ -145,9 +160,12 @@ const Vehicles: React.FC = () => {
           <Card>
             <CardHeader>
               <CardTitle>Veículos Cadastrados</CardTitle>
+              <div className="flex gap-2 mt-2">
+                <Button type="button" onClick={() => exportToCSV(filteredVehicles, 'veiculos.csv')}>Exportar CSV</Button>
+              </div>
             </CardHeader>
             <CardContent>
-              <div className="overflow-x-auto">
+              <div className="w-full overflow-x-auto">
                 <table className="min-w-full text-sm">
                   <thead>
                     <tr className="border-b">
@@ -158,7 +176,7 @@ const Vehicles: React.FC = () => {
                     </tr>
                   </thead>
                   <tbody>
-                    {filteredVehicles.map((vehicle) => (
+                    {paginatedVehicles.map((vehicle) => (
                       <tr key={vehicle.id} className="border-b hover:bg-muted/30">
                         <td className="px-4 py-2">{vehicle.plate}</td>
                         <td className="px-4 py-2">{vehicle.model}</td>
@@ -172,6 +190,11 @@ const Vehicles: React.FC = () => {
                   </tbody>
                 </table>
               </div>
+              <div className="flex justify-end gap-2 mt-2">
+                <Button disabled={page === 1} onClick={() => setPage(p => p - 1)}>Anterior</Button>
+                <span>Página {page} de {Math.ceil(filteredVehicles.length / PAGE_SIZE)}</span>
+                <Button disabled={page === Math.ceil(filteredVehicles.length / PAGE_SIZE)} onClick={() => setPage(p => p + 1)}>Próxima</Button>
+              </div>
             </CardContent>
           </Card>
         )}
@@ -182,16 +205,16 @@ const Vehicles: React.FC = () => {
             <DialogTitle>Novo Veículo</DialogTitle>
           </DialogHeader>
           <form onSubmit={handleSubmit} className="space-y-4">
-            <Input name="plate" placeholder="Placa" value={form.plate} onChange={handleChange} required />
-            <Input name="model" placeholder="Modelo" value={form.model} onChange={handleChange} required />
-            <select name="status" value={form.status} onChange={handleChange} className="w-full border rounded px-3 py-2">
+            <Input name="plate" placeholder="Placa" value={form.plate} onChange={handleChange} required className="w-full min-h-[44px] text-base" />
+            <Input name="model" placeholder="Modelo" value={form.model} onChange={handleChange} required className="w-full min-h-[44px] text-base" />
+            <select name="status" value={form.status} onChange={handleChange} className="w-full border rounded px-3 py-3 min-h-[44px] text-base">
               <option value="ATIVO">Ativo</option>
               <option value="INATIVO">Inativo</option>
             </select>
             {formError && <p className="text-destructive text-sm">{formError}</p>}
             <DialogFooter>
-              <Button type="button" variant="outline" onClick={() => setShowModal(false)} disabled={saving}>Cancelar</Button>
-              <Button type="submit" disabled={saving}>{saving ? 'Salvando...' : 'Salvar'}</Button>
+              <Button type="button" variant="outline" onClick={() => setShowModal(false)} disabled={saving} className="w-full min-h-[44px] text-base">Cancelar</Button>
+              <Button type="submit" disabled={saving} className="w-full min-h-[44px] text-base">{saving ? 'Salvando...' : 'Salvar'}</Button>
             </DialogFooter>
           </form>
         </DialogContent>
@@ -202,16 +225,16 @@ const Vehicles: React.FC = () => {
             <DialogTitle>Editar Veículo</DialogTitle>
           </DialogHeader>
           <form onSubmit={handleEditSubmit} className="space-y-4">
-            <Input name="plate" placeholder="Placa" value={editForm.plate} onChange={handleEditChange} required />
-            <Input name="model" placeholder="Modelo" value={editForm.model} onChange={handleEditChange} required />
-            <select name="status" value={editForm.status} onChange={handleEditChange} className="w-full border rounded px-3 py-2">
+            <Input name="plate" placeholder="Placa" value={editForm.plate} onChange={handleEditChange} required className="w-full min-h-[44px] text-base" />
+            <Input name="model" placeholder="Modelo" value={editForm.model} onChange={handleEditChange} required className="w-full min-h-[44px] text-base" />
+            <select name="status" value={editForm.status} onChange={handleEditChange} className="w-full border rounded px-3 py-3 min-h-[44px] text-base">
               <option value="ATIVO">Ativo</option>
               <option value="INATIVO">Inativo</option>
             </select>
             {editError && <p className="text-destructive text-sm">{editError}</p>}
             <DialogFooter>
-              <Button type="button" variant="outline" onClick={() => setEditVehicle(null)} disabled={editSaving}>Cancelar</Button>
-              <Button type="submit" disabled={editSaving}>{editSaving ? 'Salvando...' : 'Salvar'}</Button>
+              <Button type="button" variant="outline" onClick={() => setEditVehicle(null)} disabled={editSaving} className="w-full min-h-[44px] text-base">Cancelar</Button>
+              <Button type="submit" disabled={editSaving} className="w-full min-h-[44px] text-base">{editSaving ? 'Salvando...' : 'Salvar'}</Button>
             </DialogFooter>
           </form>
         </DialogContent>

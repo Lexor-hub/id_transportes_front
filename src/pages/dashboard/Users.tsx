@@ -46,6 +46,14 @@ const Users: React.FC = () => {
     setForm({ ...form, [e.target.name]: e.target.value });
   };
 
+  const roleToUserType: Record<string, string> = {
+    ADMINISTRADOR: 'ADMIN',
+    MOTORISTA: 'MOTORISTA',
+    SUPERVISOR: 'SUPERVISOR',
+    OPERADOR: 'OPERADOR',
+    CLIENTE: 'CLIENTE',
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setSaving(true);
@@ -55,7 +63,13 @@ const Users: React.FC = () => {
       setSaving(false);
       return;
     }
-    const response = await apiService.createUser(form);
+    // Montar payload com user_type
+    const userPayload = {
+      ...form,
+      user_type: roleToUserType[form.role] || form.role,
+    };
+    delete userPayload.role;
+    const response = await apiService.createUser(userPayload);
     if (response.success && response.data) {
       setShowModal(false);
       fetchUsers();
@@ -90,7 +104,13 @@ const Users: React.FC = () => {
       setEditSaving(false);
       return;
     }
-    const response = await apiService.updateUser(editUser.id, editForm);
+    // Montar payload com user_type
+    const userPayload = {
+      ...editForm,
+      user_type: roleToUserType[editForm.role] || editForm.role,
+    };
+    delete userPayload.role;
+    const response = await apiService.updateUser(editUser.id, userPayload);
     if (response.success && response.data) {
       setEditUser(null);
       fetchUsers();
@@ -110,10 +130,25 @@ const Users: React.FC = () => {
     }
   };
 
+  const PAGE_SIZE = 10;
+  const exportToCSV = (data: User[], filename: string) => {
+    if (!data.length) return;
+    const csv = [Object.keys(data[0]).join(','), ...data.map(row => Object.values(row).join(','))].join('\n');
+    const blob = new Blob([csv], { type: 'text/csv' });
+    const url = window.URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = filename;
+    a.click();
+    window.URL.revokeObjectURL(url);
+  };
+  const [page, setPage] = useState(1);
+  const paginatedUsers = users.slice((page-1)*PAGE_SIZE, page*PAGE_SIZE);
+
   return (
     <div className="min-h-screen bg-background">
       <Header />
-      <div className="container mx-auto px-6 py-6">
+      <div className="container mx-auto px-4 md:px-6 py-6">
         <div className="flex items-center justify-between mb-4">
           <h1 className="text-2xl font-bold">Gerenciamento de Usuários</h1>
           <Button onClick={handleOpenModal}>Novo Usuário</Button>
@@ -126,6 +161,9 @@ const Users: React.FC = () => {
           <Card>
             <CardHeader>
               <CardTitle>Usuários do Sistema</CardTitle>
+              <div className="flex gap-2 mt-2">
+                <Button type="button" onClick={() => exportToCSV(users, 'usuarios.csv')}>Exportar CSV</Button>
+              </div>
             </CardHeader>
             <CardContent>
               <div className="overflow-x-auto">
@@ -136,10 +174,11 @@ const Users: React.FC = () => {
                       <th className="px-4 py-2 text-left">E-mail</th>
                       <th className="px-4 py-2 text-left">Perfil</th>
                       <th className="px-4 py-2 text-left">Status</th>
+                      <th className="px-4 py-2 text-left">Ações</th>
                     </tr>
                   </thead>
                   <tbody>
-                    {users.map((user) => (
+                    {paginatedUsers.map((user) => (
                       <tr key={user.id} className="border-b hover:bg-muted/30">
                         <td className="px-4 py-2">{user.name}</td>
                         <td className="px-4 py-2">{user.email}</td>
@@ -156,6 +195,11 @@ const Users: React.FC = () => {
                   </tbody>
                 </table>
               </div>
+              <div className="flex justify-end gap-2 mt-2">
+                <Button disabled={page === 1} onClick={() => setPage(p => p - 1)}>Anterior</Button>
+                <span>Página {page} de {Math.ceil(users.length / PAGE_SIZE)}</span>
+                <Button disabled={page === Math.ceil(users.length / PAGE_SIZE)} onClick={() => setPage(p => p + 1)}>Próxima</Button>
+              </div>
             </CardContent>
           </Card>
         )}
@@ -166,11 +210,11 @@ const Users: React.FC = () => {
             <DialogTitle>Novo Usuário</DialogTitle>
           </DialogHeader>
           <form onSubmit={handleSubmit} className="space-y-4">
-            <Input name="name" placeholder="Nome" value={form.name} onChange={handleChange} required />
-            <Input name="email" placeholder="E-mail" value={form.email} onChange={handleChange} required />
-            <Input name="username" placeholder="Usuário" value={form.username} onChange={handleChange} required />
-            <Input name="password" placeholder="Senha" type="password" value={form.password} onChange={handleChange} required />
-            <select name="role" value={form.role} onChange={handleChange} className="w-full border rounded px-3 py-2">
+            <Input name="name" placeholder="Nome" value={form.name} onChange={handleChange} required className="w-full min-h-[44px] text-base" />
+            <Input name="email" placeholder="E-mail" value={form.email} onChange={handleChange} required className="w-full min-h-[44px] text-base" />
+            <Input name="username" placeholder="Usuário" value={form.username} onChange={handleChange} required className="w-full min-h-[44px] text-base" />
+            <Input name="password" placeholder="Senha" type="password" value={form.password} onChange={handleChange} required className="w-full min-h-[44px] text-base" />
+            <select name="role" value={form.role} onChange={handleChange} className="w-full border rounded px-3 py-3 min-h-[44px] text-base">
               <option value="ADMINISTRADOR">Administrador</option>
               <option value="MOTORISTA">Motorista</option>
               <option value="SUPERVISOR">Supervisor</option>
@@ -179,8 +223,8 @@ const Users: React.FC = () => {
             </select>
             {formError && <p className="text-destructive text-sm">{formError}</p>}
             <DialogFooter>
-              <Button type="button" variant="outline" onClick={() => setShowModal(false)} disabled={saving}>Cancelar</Button>
-              <Button type="submit" disabled={saving}>{saving ? 'Salvando...' : 'Salvar'}</Button>
+              <Button type="button" variant="outline" onClick={() => setShowModal(false)} disabled={saving} className="w-full min-h-[44px] text-base">Cancelar</Button>
+              <Button type="submit" disabled={saving} className="w-full min-h-[44px] text-base">{saving ? 'Salvando...' : 'Salvar'}</Button>
             </DialogFooter>
           </form>
         </DialogContent>
@@ -191,10 +235,10 @@ const Users: React.FC = () => {
             <DialogTitle>Editar Usuário</DialogTitle>
           </DialogHeader>
           <form onSubmit={handleEditSubmit} className="space-y-4">
-            <Input name="name" placeholder="Nome" value={editForm.name} onChange={handleEditChange} required />
-            <Input name="email" placeholder="E-mail" value={editForm.email} onChange={handleEditChange} required />
-            <Input name="username" placeholder="Usuário" value={editForm.username} onChange={handleEditChange} required />
-            <select name="role" value={editForm.role} onChange={handleEditChange} className="w-full border rounded px-3 py-2">
+            <Input name="name" placeholder="Nome" value={editForm.name} onChange={handleEditChange} required className="w-full min-h-[44px] text-base" />
+            <Input name="email" placeholder="E-mail" value={editForm.email} onChange={handleEditChange} required className="w-full min-h-[44px] text-base" />
+            <Input name="username" placeholder="Usuário" value={editForm.username} onChange={handleEditChange} required className="w-full min-h-[44px] text-base" />
+            <select name="role" value={editForm.role} onChange={handleEditChange} className="w-full border rounded px-3 py-3 min-h-[44px] text-base">
               <option value="ADMINISTRADOR">Administrador</option>
               <option value="MOTORISTA">Motorista</option>
               <option value="SUPERVISOR">Supervisor</option>
@@ -203,8 +247,8 @@ const Users: React.FC = () => {
             </select>
             {editError && <p className="text-destructive text-sm">{editError}</p>}
             <DialogFooter>
-              <Button type="button" variant="outline" onClick={() => setEditUser(null)} disabled={editSaving}>Cancelar</Button>
-              <Button type="submit" disabled={editSaving}>{editSaving ? 'Salvando...' : 'Salvar'}</Button>
+              <Button type="button" variant="outline" onClick={() => setEditUser(null)} disabled={editSaving} className="w-full min-h-[44px] text-base">Cancelar</Button>
+              <Button type="submit" disabled={editSaving} className="w-full min-h-[44px] text-base">{editSaving ? 'Salvando...' : 'Salvar'}</Button>
             </DialogFooter>
           </form>
         </DialogContent>

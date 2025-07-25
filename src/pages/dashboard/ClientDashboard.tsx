@@ -103,7 +103,7 @@ export const ClientDashboard = () => {
     <div className="min-h-screen bg-background">
       <Header />
       
-      <main className="container mx-auto px-6 py-6 space-y-6">
+      <main className="container mx-auto px-4 md:px-6 py-6 space-y-6">
         {/* Page Header */}
         <div className="flex items-center justify-between">
           <div>
@@ -119,7 +119,7 @@ export const ClientDashboard = () => {
         </div>
 
         {/* Stats Grid */}
-        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4 max-w-full overflow-x-auto">
           <StatsCard
             title="Total de Entregas"
             value={stats.totalEntregas}

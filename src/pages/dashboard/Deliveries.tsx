@@ -61,20 +61,35 @@ const Deliveries: React.FC = () => {
     r.client.toLowerCase().includes(search.toLowerCase())
   );
 
+  const PAGE_SIZE = 10;
+  const exportToCSV = (data: Receipt[], filename: string) => {
+    if (!data.length) return;
+    const csv = [Object.keys(data[0]).join(','), ...data.map(row => Object.values(row).join(','))].join('\n');
+    const blob = new Blob([csv], { type: 'text/csv' });
+    const url = window.URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = filename;
+    a.click();
+    window.URL.revokeObjectURL(url);
+  };
+  const [page, setPage] = useState(1);
+  const paginatedReceipts = filteredReceipts.slice((page-1)*PAGE_SIZE, page*PAGE_SIZE);
+
   return (
     <div className="min-h-screen bg-background">
       <Header />
-      <div className="container mx-auto px-6 py-6">
+      <div className="container mx-auto px-4 md:px-6 py-6">
         <div className="flex items-center justify-between mb-4">
           <h1 className="text-2xl font-bold">Canhotos de Entregas</h1>
-          <form onSubmit={handleSearch} className="flex gap-2">
+          <form onSubmit={handleSearch} className="flex flex-col gap-2 w-full max-w-md md:flex-row md:gap-2">
             <Input
               placeholder="Buscar por NF ou Cliente"
               value={search}
               onChange={e => setSearch(e.target.value)}
-              className="w-64"
+              className="w-full min-h-[44px] text-base"
             />
-            <Button type="submit">Buscar</Button>
+            <Button type="submit" className="w-full min-h-[44px] text-base md:w-auto">Buscar</Button>
           </form>
         </div>
         {loading ? (
@@ -85,6 +100,9 @@ const Deliveries: React.FC = () => {
           <Card>
             <CardHeader>
               <CardTitle>Lista de Canhotos</CardTitle>
+              <div className="flex gap-2 mt-2">
+                <Button type="button" onClick={() => exportToCSV(filteredReceipts, 'canhotos.csv')} className="min-h-[44px] text-base">Exportar CSV</Button>
+              </div>
             </CardHeader>
             <CardContent>
               <div className="overflow-x-auto">
@@ -101,29 +119,26 @@ const Deliveries: React.FC = () => {
                     </tr>
                   </thead>
                   <tbody>
-                    {filteredReceipts.map((r) => (
+                    {paginatedReceipts.map((r) => (
                       <tr key={r.id} className="border-b hover:bg-muted/30">
                         <td className="px-4 py-2">{r.nfNumber}</td>
                         <td className="px-4 py-2">{r.client}</td>
                         <td className="px-4 py-2">{new Date(r.date).toLocaleDateString('pt-BR')}</td>
                         <td className="px-4 py-2">{r.status}</td>
+                        <td className="px-4 py-2"><a href={r.imageUrl} target="_blank" rel="noopener noreferrer">Ver</a></td>
+                        <td className="px-4 py-2">{r.ocrStatus}</td>
                         <td className="px-4 py-2">
-                          {r.imageUrl ? (
-                            <a href={r.imageUrl} target="_blank" rel="noopener noreferrer" className="underline text-primary">Ver</a>
-                          ) : (
-                            <span className="text-muted-foreground">-</span>
-                          )}
-                        </td>
-                        <td className="px-4 py-2">{r.ocrStatus || '-'}</td>
-                        <td className="px-4 py-2">
-                          <Button size="sm" variant="outline" onClick={() => handleProcessOCR(r.id)} disabled={processingId === r.id}>
-                            {processingId === r.id ? 'Processando...' : 'Processar OCR'}
-                          </Button>
+                          <Button size="sm" variant="outline" onClick={() => handleProcessOCR(r.id)} disabled={processingId === r.id} className="min-h-[36px] text-sm">{processingId === r.id ? 'Processando...' : 'Processar OCR'}</Button>
                         </td>
                       </tr>
                     ))}
                   </tbody>
                 </table>
+              </div>
+              <div className="flex justify-end gap-2 mt-2">
+                <Button disabled={page === 1} onClick={() => setPage(p => p - 1)} className="min-h-[44px] text-base">Anterior</Button>
+                <span>Página {page} de {Math.ceil(filteredReceipts.length / PAGE_SIZE)}</span>
+                <Button disabled={page === Math.ceil(filteredReceipts.length / PAGE_SIZE)} onClick={() => setPage(p => p + 1)} className="min-h-[44px] text-base">Próxima</Button>
               </div>
             </CardContent>
           </Card>
