@@ -1,5 +1,4 @@
 import React, { useEffect, useState } from 'react';
-import { Header } from '@/components/layout/Header';
 import { apiService } from '@/services/api';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -10,7 +9,11 @@ interface Vehicle {
   id: string;
   plate: string;
   model: string;
+  brand?: string;
+  year?: number;
+  color?: string;
   status: string;
+  driver_id?: string;
 }
 
 const Vehicles: React.FC = () => {
@@ -19,11 +22,25 @@ const Vehicles: React.FC = () => {
   const [error, setError] = useState<string | null>(null);
   const [search, setSearch] = useState('');
   const [showModal, setShowModal] = useState(false);
-  const [form, setForm] = useState({ plate: '', model: '', status: 'ATIVO' });
+  const [form, setForm] = useState({ 
+    plate: '', 
+    model: '', 
+    brand: '',
+    year: new Date().getFullYear(),
+    color: '',
+    status: 'ATIVO' 
+  });
   const [saving, setSaving] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
   const [editVehicle, setEditVehicle] = useState<Vehicle | null>(null);
-  const [editForm, setEditForm] = useState({ plate: '', model: '', status: 'ATIVO' });
+  const [editForm, setEditForm] = useState({ 
+    plate: '', 
+    model: '', 
+    brand: '',
+    year: new Date().getFullYear(),
+    color: '',
+    status: 'ATIVO' 
+  });
   const [editSaving, setEditSaving] = useState(false);
   const [editError, setEditError] = useState<string | null>(null);
 
@@ -34,7 +51,7 @@ const Vehicles: React.FC = () => {
   const fetchVehicles = async () => {
     setLoading(true);
     setError(null);
-    const response = await apiService.getVehicles?.();
+    const response = await apiService.getVehicles();
     if (response?.success && response.data) {
       setVehicles(response.data as Vehicle[]);
     } else {
@@ -44,7 +61,14 @@ const Vehicles: React.FC = () => {
   };
 
   const handleOpenModal = () => {
-    setForm({ plate: '', model: '', status: 'ATIVO' });
+    setForm({ 
+      plate: '', 
+      model: '', 
+      brand: '',
+      year: new Date().getFullYear(),
+      color: '',
+      status: 'ATIVO' 
+    });
     setFormError(null);
     setShowModal(true);
   };
@@ -62,7 +86,13 @@ const Vehicles: React.FC = () => {
       setSaving(false);
       return;
     }
-    const response = await apiService.createVehicle?.(form);
+    const response = await apiService.createVehicle({
+      plate: form.plate,
+      model: form.model,
+      brand: form.brand || 'Não informado',
+      year: form.year || new Date().getFullYear(),
+      color: form.color || 'Não informado'
+    });
     if (response?.success && response.data) {
       setShowModal(false);
       fetchVehicles();
@@ -77,6 +107,9 @@ const Vehicles: React.FC = () => {
     setEditForm({
       plate: vehicle.plate,
       model: vehicle.model,
+      brand: vehicle.brand || '',
+      year: vehicle.year || new Date().getFullYear(),
+      color: vehicle.color || '',
       status: vehicle.status,
     });
     setEditError(null);
@@ -96,7 +129,7 @@ const Vehicles: React.FC = () => {
       setEditSaving(false);
       return;
     }
-    const response = await apiService.updateVehicle?.(editVehicle.id, editForm);
+    const response = await apiService.updateVehicle(editVehicle.id, editForm);
     if (response?.success && response.data) {
       setEditVehicle(null);
       fetchVehicles();
@@ -108,7 +141,7 @@ const Vehicles: React.FC = () => {
 
   const handleDelete = async (vehicle: Vehicle) => {
     if (!window.confirm('Tem certeza que deseja excluir este veículo?')) return;
-    const response = await apiService.deleteVehicle?.(vehicle.id);
+    const response = await apiService.deleteVehicle(vehicle.id);
     if (response?.success) {
       fetchVehicles();
     } else {
@@ -137,8 +170,7 @@ const Vehicles: React.FC = () => {
   const paginatedVehicles = filteredVehicles.slice((page-1)*PAGE_SIZE, page*PAGE_SIZE);
 
   return (
-    <div className="min-h-screen bg-background">
-      <Header />
+    <>
       <div className="container mx-auto px-4 md:px-6 py-6">
         <div className="flex items-center justify-between mb-4">
           <h1 className="text-2xl font-bold">Gerenciamento de Veículos</h1>
@@ -199,6 +231,7 @@ const Vehicles: React.FC = () => {
           </Card>
         )}
       </div>
+      
       <Dialog open={showModal} onOpenChange={setShowModal}>
         <DialogContent>
           <DialogHeader>
@@ -219,6 +252,7 @@ const Vehicles: React.FC = () => {
           </form>
         </DialogContent>
       </Dialog>
+      
       <Dialog open={!!editVehicle} onOpenChange={(open) => !open && setEditVehicle(null)}>
         <DialogContent>
           <DialogHeader>
@@ -239,7 +273,7 @@ const Vehicles: React.FC = () => {
           </form>
         </DialogContent>
       </Dialog>
-    </div>
+    </>
   );
 };
 

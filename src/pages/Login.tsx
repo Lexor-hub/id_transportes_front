@@ -1,181 +1,207 @@
-import { useState } from 'react';
-import { useAuth } from '@/contexts/AuthContext';
-import { useNavigate } from 'react-router-dom';
+import React, { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Card, CardHeader, CardContent, CardDescription, CardTitle } from '@/components/ui/card';
-import { Truck, Lock, User, ArrowRight } from 'lucide-react';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/hooks/use-toast';
+import { Loader2, Building2, User, Lock } from 'lucide-react';
+import { apiService } from '@/services/api';
 
-export const Login = () => {
-  const [credentials, setCredentials] = useState({ username: '', password: '' });
-  const [loading, setLoading] = useState(false);
-  const [showForgotPassword, setShowForgotPassword] = useState(false);
-  const [email, setEmail] = useState('');
-  
-  const { login } = useAuth();
-  const navigate = useNavigate();
+interface Company {
+  id: string;
+  name: string;
+  domain: string;
+  email: string;
+  subscription_plan: string;
+}
+
+const Login: React.FC = () => {
+  const { login, selectCompany, authStep, loading } = useAuth();
   const { toast } = useToast();
+  const [credentials, setCredentials] = useState({ username: '', password: '' });
+  const [companies, setCompanies] = useState<Company[]>([]);
+  const [companiesLoading, setCompaniesLoading] = useState(false);
+  const [error, setError] = useState('');
 
-  const handleLogin = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setLoading(true);
-    
+  useEffect(() => {
+    if (authStep === 'company') {
+      loadCompanies();
+    }
+  }, [authStep]);
+
+  const loadCompanies = async () => {
     try {
-      await login(credentials);
-      navigate('/dashboard');
+      setCompaniesLoading(true);
+      const response = await apiService.getCompanies();
+      if (response.success && response.data) {
+        setCompanies(response.data);
+      } else {
+        setError('Erro ao carregar empresas');
+      }
     } catch (error) {
-      // Error handled in AuthContext
+      setError('Erro ao carregar empresas');
     } finally {
-      setLoading(false);
+      setCompaniesLoading(false);
     }
   };
 
-  const handleForgotPassword = async (e: React.FormEvent) => {
+  const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
-    // Implement forgot password logic
-    toast({
-      title: "Email enviado",
-      description: "Verifique sua caixa de entrada para redefinir sua senha.",
-    });
-    setShowForgotPassword(false);
+    setError('');
+
+    try {
+      await login(credentials);
+    } catch (error) {
+      setError('Credenciais inválidas');
+    }
   };
 
-  return (
-    <div className="min-h-screen bg-gradient-hero flex items-center justify-center p-4">
-      <div className="w-full max-w-md space-y-6">
-        {/* Logo */}
-        <div className="text-center space-y-2">
-          <div className="mx-auto bg-white/20 backdrop-blur-sm p-4 rounded-2xl w-fit">
-            <Truck className="h-12 w-12 text-white" />
+  const handleCompanySelect = async (companyId: string) => {
+    try {
+      await selectCompany(companyId);
+    } catch (error) {
+      setError('Erro ao selecionar empresa');
+    }
+  };
+
+  if (authStep === 'company') {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gray-50 py-12 px-4 sm:px-6 lg:px-8">
+        <div className="max-w-md w-full space-y-8">
+          <div>
+            <div className="mx-auto h-12 w-12 flex items-center justify-center rounded-full bg-blue-100">
+              <Building2 className="h-6 w-6 text-blue-600" />
+            </div>
+            <h2 className="mt-6 text-center text-3xl font-extrabold text-gray-900">
+              Selecione sua empresa
+            </h2>
+            <p className="mt-2 text-center text-sm text-gray-600">
+              Escolha a empresa para a qual você trabalha
+            </p>
           </div>
-          <h1 className="text-3xl font-bold text-white">ID Transporte</h1>
-          <p className="text-white/80">Sistema de Gestão de Entregas</p>
-        </div>
 
-        {/* Login Form */}
-        <Card className="backdrop-blur-sm bg-white/95 shadow-elevated border-0">
-          <CardHeader className="space-y-1">
-            <CardTitle className="text-2xl font-bold text-center">
-              {showForgotPassword ? 'Recuperar Senha' : 'Fazer Login'}
-            </CardTitle>
-            <CardDescription className="text-center">
-              {showForgotPassword 
-                ? 'Digite seu email para receber instruções' 
-                : 'Acesse sua conta do sistema'
-              }
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            {!showForgotPassword ? (
-              <form onSubmit={handleLogin} className="space-y-4">
-                <div className="space-y-2">
-                  <Label htmlFor="username">Usuário ou CPF</Label>
-                  <div className="relative">
-                    <User className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
-                    <Input
-                      id="username"
-                      name="username"
-                      type="text"
-                      placeholder="Digite seu usuário ou CPF"
-                      value={credentials.username}
-                      onChange={(e) => setCredentials(prev => ({ ...prev, username: e.target.value }))}
-                      className="pl-10 w-full min-h-[44px] text-base"
-                      required
-                    />
-                  </div>
+          <Card>
+            <CardContent className="pt-6">
+              {companiesLoading ? (
+                <div className="flex items-center justify-center py-8">
+                  <Loader2 className="h-6 w-6 animate-spin text-blue-600" />
+                  <span className="ml-2 text-gray-600">Carregando empresas...</span>
                 </div>
-                
-                <div className="space-y-2">
-                  <Label htmlFor="password">Senha</Label>
-                  <div className="relative">
-                    <Lock className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
-                    <Input
-                      id="password"
-                      name="password"
-                      type="password"
-                      placeholder="Digite sua senha"
-                      value={credentials.password}
-                      onChange={(e) => setCredentials(prev => ({ ...prev, password: e.target.value }))}
-                      className="pl-10 w-full min-h-[44px] text-base"
-                      required
-                    />
-                  </div>
-                </div>
-
-                <Button 
-                  type="submit" 
-                  className="w-full min-h-[44px] text-base" 
-                  disabled={loading}
-                >
-                  {loading ? (
-                    <div className="flex items-center gap-2">
-                      <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                      Entrando...
-                    </div>
-                  ) : (
-                    <div className="flex items-center gap-2">
-                      Entrar
-                      <ArrowRight className="h-4 w-4" />
-                    </div>
-                  )}
-                </Button>
-
-                <div className="text-center">
-                  <Button
-                    type="button"
-                    variant="link"
-                    className="text-sm text-muted-foreground"
-                    onClick={() => setShowForgotPassword(true)}
+              ) : error ? (
+                <div className="text-center py-8">
+                  <p className="text-red-600">{error}</p>
+                  <Button 
+                    onClick={loadCompanies} 
+                    variant="outline" 
+                    className="mt-4"
                   >
-                    Esqueceu sua senha?
+                    Tentar novamente
                   </Button>
                 </div>
-              </form>
-            ) : (
-              <form onSubmit={handleForgotPassword} className="space-y-4">
-                <div className="space-y-2">
-                  <Label htmlFor="email">Email</Label>
+              ) : (
+                <div className="space-y-4">
+                  {companies.map((company) => (
+                    <div
+                      key={company.id}
+                      onClick={() => handleCompanySelect(company.id)}
+                      className="p-4 border rounded-lg cursor-pointer hover:bg-gray-50 transition-colors"
+                    >
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <h3 className="font-medium text-gray-900">{company.name}</h3>
+                          <p className="text-sm text-gray-500">{company.domain}</p>
+                          <p className="text-xs text-gray-400">{company.subscription_plan}</p>
+                        </div>
+                        <Button size="sm" variant="outline">
+                          Selecionar
+                        </Button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="min-h-screen flex items-center justify-center bg-gray-50 py-12 px-4 sm:px-6 lg:px-8">
+      <div className="max-w-md w-full space-y-8">
+        <div>
+          <div className="mx-auto h-12 w-12 flex items-center justify-center rounded-full bg-blue-100">
+            <User className="h-6 w-6 text-blue-600" />
+          </div>
+          <h2 className="mt-6 text-center text-3xl font-extrabold text-gray-900">
+            Entrar na sua conta
+          </h2>
+          <p className="mt-2 text-center text-sm text-gray-600">
+            Digite suas credenciais para acessar o sistema
+          </p>
+        </div>
+
+        <Card>
+          <CardContent className="pt-6">
+            <form onSubmit={handleLogin} className="space-y-4">
+              <div>
+                <Label htmlFor="username">Usuário</Label>
+                <div className="relative">
+                  <User className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
                   <Input
-                    id="email"
-                    type="email"
-                    placeholder="Digite seu email"
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
+                    id="username"
+                    type="text"
+                    value={credentials.username}
+                    onChange={(e) => setCredentials({ ...credentials, username: e.target.value })}
+                    className="pl-10"
+                    placeholder="Digite seu usuário"
                     required
                   />
                 </div>
+              </div>
 
-                <Button type="submit" className="w-full bg-gradient-primary">
-                  Enviar Instruções
-                </Button>
-
-                <div className="text-center">
-                  <Button
-                    type="button"
-                    variant="link"
-                    className="text-sm"
-                    onClick={() => setShowForgotPassword(false)}
-                  >
-                    Voltar ao login
-                  </Button>
+              <div>
+                <Label htmlFor="password">Senha</Label>
+                <div className="relative">
+                  <Lock className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
+                  <Input
+                    id="password"
+                    type="password"
+                    value={credentials.password}
+                    onChange={(e) => setCredentials({ ...credentials, password: e.target.value })}
+                    className="pl-10"
+                    placeholder="Digite sua senha"
+                    required
+                  />
                 </div>
-              </form>
-            )}
-          </CardContent>
-        </Card>
+              </div>
 
-        {/* Info Box */}
-        <Card className="backdrop-blur-sm bg-white/90 border-0">
-          <CardContent className="pt-4">
-            <div className="text-center text-sm text-muted-foreground space-y-1">
-              <p><strong>Motoristas:</strong> Use seu CPF ou 3 primeiros dígitos</p>
-              <p><strong>Escritório:</strong> Use suas credenciais de usuário</p>
-            </div>
+              {error && (
+                <div className="text-red-600 text-sm text-center">{error}</div>
+              )}
+
+              <Button
+                type="submit"
+                className="w-full"
+                disabled={loading}
+              >
+                {loading ? (
+                  <>
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    Entrando...
+                  </>
+                ) : (
+                  'Entrar'
+                )}
+              </Button>
+            </form>
           </CardContent>
         </Card>
       </div>
     </div>
   );
 };
+
+export default Login;

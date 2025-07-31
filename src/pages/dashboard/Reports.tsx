@@ -1,5 +1,4 @@
 import React, { useEffect, useState } from 'react';
-import { Header } from '@/components/layout/Header';
 import { apiService } from '@/services/api';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
@@ -95,8 +94,7 @@ const Reports: React.FC = () => {
   const totalPages = (data: any[]) => Math.ceil(data.length / PAGE_SIZE);
 
   return (
-    <div className="min-h-screen bg-background">
-      <Header />
+    <>
       <div className="container mx-auto px-4 md:px-6 py-6">
         <h1 className="text-2xl font-bold mb-4">Relatórios</h1>
         <Tabs value={tab} onValueChange={setTab}>
@@ -316,7 +314,7 @@ const Reports: React.FC = () => {
                           <TableRow key={r.id}>
                             <TableCell>{r.client}</TableCell>
                             <TableCell>{r.volume}</TableCell>
-                            <TableCell>R$ {r.value?.toFixed(2)}</TableCell>
+                            <TableCell>R$ {r.value ? r.value.toFixed(2) : '0.00'}</TableCell>
                             <TableCell>{r.month}/{r.year}</TableCell>
                           </TableRow>
                         ))}
@@ -368,7 +366,7 @@ const Reports: React.FC = () => {
           </TabsContent>
         </Tabs>
       </div>
-    </div>
+    </>
   );
 };
 

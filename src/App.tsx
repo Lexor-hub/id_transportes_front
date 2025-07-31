@@ -5,7 +5,8 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { AuthProvider, useAuth } from "@/contexts/AuthContext";
 import { ProtectedRoute } from "@/components/auth/ProtectedRoute";
-import { Login } from "@/pages/Login";
+import { DashboardLayout } from "@/components/layout/DashboardLayout";
+import Login from "@/pages/Login";
 import { Dashboard } from "@/pages/dashboard";
 import NotFound from "./pages/NotFound";
 import React from "react";
@@ -14,6 +15,7 @@ import Vehicles from "./pages/dashboard/Vehicles";
 import Deliveries from "./pages/dashboard/Deliveries";
 import Tracking from "./pages/dashboard/Tracking";
 import Reports from "./pages/dashboard/Reports";
+import { Companies } from "./pages/dashboard/Companies";
 
 const queryClient = new QueryClient();
 
@@ -50,7 +52,9 @@ const AppRoutes = () => {
         path="/dashboard" 
         element={
           <ProtectedRoute>
-            <Dashboard />
+            <DashboardLayout>
+              <Dashboard />
+            </DashboardLayout>
           </ProtectedRoute>
         } 
       />
@@ -58,7 +62,9 @@ const AppRoutes = () => {
         path="/dashboard/usuarios" 
         element={
           <ProtectedRoute>
-            <Users />
+            <DashboardLayout>
+              <Users />
+            </DashboardLayout>
           </ProtectedRoute>
         } 
       />
@@ -66,7 +72,9 @@ const AppRoutes = () => {
         path="/dashboard/veiculos" 
         element={
           <ProtectedRoute>
-            <Vehicles />
+            <DashboardLayout>
+              <Vehicles />
+            </DashboardLayout>
           </ProtectedRoute>
         } 
       />
@@ -74,7 +82,9 @@ const AppRoutes = () => {
         path="/dashboard/entregas" 
         element={
           <ProtectedRoute>
-            <Deliveries />
+            <DashboardLayout>
+              <Deliveries />
+            </DashboardLayout>
           </ProtectedRoute>
         } 
       />
@@ -82,7 +92,9 @@ const AppRoutes = () => {
         path="/dashboard/rastreamento" 
         element={
           <ProtectedRoute>
-            <Tracking />
+            <DashboardLayout>
+              <Tracking />
+            </DashboardLayout>
           </ProtectedRoute>
         } 
       />
@@ -90,7 +102,19 @@ const AppRoutes = () => {
         path="/dashboard/relatorios" 
         element={
           <ProtectedRoute>
-            <Reports />
+            <DashboardLayout>
+              <Reports />
+            </DashboardLayout>
+          </ProtectedRoute>
+        } 
+      />
+      <Route 
+        path="/dashboard/empresas" 
+        element={
+          <ProtectedRoute>
+            <DashboardLayout>
+              <Companies />
+            </DashboardLayout>
           </ProtectedRoute>
         } 
       />

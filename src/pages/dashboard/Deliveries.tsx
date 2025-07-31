@@ -1,5 +1,4 @@
 import React, { useEffect, useState } from 'react';
-import { Header } from '@/components/layout/Header';
 import { apiService } from '@/services/api';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -77,9 +76,7 @@ const Deliveries: React.FC = () => {
   const paginatedReceipts = filteredReceipts.slice((page-1)*PAGE_SIZE, page*PAGE_SIZE);
 
   return (
-    <div className="min-h-screen bg-background">
-      <Header />
-      <div className="container mx-auto px-4 md:px-6 py-6">
+    <div className="container mx-auto px-4 md:px-6 py-6">
         <div className="flex items-center justify-between mb-4">
           <h1 className="text-2xl font-bold">Canhotos de Entregas</h1>
           <form onSubmit={handleSearch} className="flex flex-col gap-2 w-full max-w-md md:flex-row md:gap-2">
@@ -143,7 +140,6 @@ const Deliveries: React.FC = () => {
             </CardContent>
           </Card>
         )}
-      </div>
     </div>
   );
 };

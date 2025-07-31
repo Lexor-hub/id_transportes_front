@@ -1,5 +1,4 @@
 import { useState, useEffect } from 'react';
-import { Header } from '@/components/layout/Header';
 import { StatsCard } from '@/components/dashboard/StatsCard';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -90,20 +89,14 @@ export const ClientDashboard = () => {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-background">
-        <Header />
-        <div className="flex items-center justify-center h-96">
-          <div className="w-8 h-8 border-4 border-primary/30 border-t-primary rounded-full animate-spin" />
-        </div>
+      <div className="flex items-center justify-center h-96">
+        <div className="w-8 h-8 border-4 border-primary/30 border-t-primary rounded-full animate-spin" />
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-background">
-      <Header />
-      
-      <main className="container mx-auto px-4 md:px-6 py-6 space-y-6">
+    <div className="container mx-auto px-4 md:px-6 py-6 space-y-6">
         {/* Page Header */}
         <div className="flex items-center justify-between">
           <div>
@@ -187,7 +180,7 @@ export const ClientDashboard = () => {
                           <div className="space-y-2 text-sm">
                             <div className="flex justify-between">
                               <span>Volume: {delivery.volume} itens</span>
-                              <span>Valor: R$ {delivery.value.toFixed(2)}</span>
+                              <span>Valor: R$ {delivery.value ? delivery.value.toFixed(2) : '0.00'}</span>
                             </div>
                             {delivery.driver && (
                               <div className="flex items-center gap-2">
@@ -285,7 +278,6 @@ export const ClientDashboard = () => {
             </Card>
           </div>
         </div>
-      </main>
     </div>
   );
 };

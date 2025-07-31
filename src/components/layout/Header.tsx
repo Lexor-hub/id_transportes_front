@@ -25,34 +25,44 @@ import {
   BreadcrumbPage,
   BreadcrumbSeparator,
 } from '@/components/ui/breadcrumb';
-import { LogOut, User, Settings, Truck, Menu, Home, BarChart3, Package, Users, MapPin, FileText } from 'lucide-react';
+import { LogOut, User, Settings, Truck, Menu, Home, BarChart3, Package, Users, MapPin, FileText, Building } from 'lucide-react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { useState } from 'react';
 
 export const Header = () => {
-  const { user, logout } = useAuth();
+  const { user, company, logout } = useAuth();
   const location = useLocation();
   const navigate = useNavigate();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
   const getRoleColor = (role: string) => {
     switch (role) {
+      case 'DRIVER': return 'text-primary';
+      case 'MASTER': return 'text-purple-500';
+      case 'ADMIN': return 'text-danger';
+      case 'SUPERVISOR': 
+      case 'OPERATOR': return 'text-warning';
+      case 'CLIENT': return 'text-success';
+      // Compatibilidade com roles antigas
       case 'MOTORISTA': return 'text-primary';
       case 'ADMINISTRADOR': return 'text-danger';
-      case 'SUPERVISOR': 
       case 'OPERADOR': return 'text-warning';
-      case 'CLIENTE': return 'text-success';
       default: return 'text-muted-foreground';
     }
   };
 
   const getRoleDisplay = (role: string) => {
     switch (role) {
+      case 'MASTER': return 'Master';
+      case 'ADMIN': return 'Administrador';
+      case 'SUPERVISOR': return 'Supervisor';
+      case 'OPERATOR': return 'Operador';
+      case 'DRIVER': return 'Motorista';
+      case 'CLIENT': return 'Cliente';
+      // Compatibilidade com roles antigas
       case 'MOTORISTA': return 'Motorista';
       case 'ADMINISTRADOR': return 'Administrador';
-      case 'SUPERVISOR': return 'Supervisor';
       case 'OPERADOR': return 'Operador';
-      case 'CLIENTE': return 'Cliente';
       default: return role;
     }
   };
@@ -60,7 +70,14 @@ export const Header = () => {
   // Navegação específica por perfil
   const getNavigationItems = () => {
     switch (user?.role) {
-      case 'ADMINISTRADOR':
+      case 'MASTER':
+        return [
+          { href: '/dashboard', label: 'Dashboard Master', icon: Home },
+          { href: '/dashboard/empresas', label: 'Empresas', icon: Building },
+          { href: '/dashboard/usuarios', label: 'Usuários', icon: Users },
+          { href: '/dashboard/relatorios', label: 'Relatórios', icon: BarChart3 },
+        ];
+      case 'ADMIN':
         return [
           { href: '/dashboard', label: 'Dashboard', icon: Home },
           { href: '/dashboard/usuarios', label: 'Usuários', icon: Users },
@@ -70,19 +87,20 @@ export const Header = () => {
           { href: '/dashboard/rastreamento', label: 'Rastreamento', icon: MapPin },
         ];
       case 'SUPERVISOR':
-      case 'OPERADOR':
+      case 'OPERATOR':
         return [
           { href: '/dashboard', label: 'Dashboard', icon: Home },
           { href: '/dashboard/entregas', label: 'Canhotos', icon: FileText },
           { href: '/dashboard/relatorios', label: 'Relatórios', icon: BarChart3 },
           { href: '/dashboard/rastreamento', label: 'Rastreamento', icon: MapPin },
         ];
+      case 'DRIVER':
       case 'MOTORISTA':
         return [
           { href: '/dashboard', label: 'Minhas Entregas', icon: Package },
           { href: '/dashboard/rastreamento', label: 'Rastreamento', icon: MapPin },
         ];
-      case 'CLIENTE':
+      case 'CLIENT':
         return [
           { href: '/dashboard', label: 'Minhas Entregas', icon: Package },
           { href: '/dashboard/relatorios', label: 'Relatórios', icon: BarChart3 },
@@ -121,7 +139,9 @@ export const Header = () => {
             </div>
             <div className="hidden sm:block">
               <h1 className="text-xl font-bold text-white">ID Transporte</h1>
-              <p className="text-primary-light text-sm">Sistema de Gestão de Entregas</p>
+              <p className="text-primary-light text-sm">
+                {company ? company.name : 'Sistema de Gestão de Entregas'}
+              </p>
             </div>
           </div>
 
@@ -172,6 +192,9 @@ export const Header = () => {
             <p className={`text-sm ${getRoleColor(user?.role || '')}`}>
               {getRoleDisplay(user?.role || '')}
             </p>
+            {company && (
+              <p className="text-white/70 text-xs">{company.domain}</p>
+            )}
           </div>
 
           {/* Mobile Menu Button */}
@@ -200,6 +223,12 @@ export const Header = () => {
                 <User className="h-4 w-4" />
                 <span>Perfil</span>
               </DropdownMenuItem>
+              {company && (
+                <DropdownMenuItem className="flex items-center gap-2 min-h-[44px] text-base">
+                  <Building className="h-4 w-4" />
+                  <span>{company.name}</span>
+                </DropdownMenuItem>
+              )}
               <DropdownMenuItem className="flex items-center gap-2 min-h-[44px] text-base">
                 <Settings className="h-4 w-4" />
                 <span>Configurações</span>

@@ -1,5 +1,4 @@
 import { useState, useEffect, useRef } from 'react';
-import { Header } from '@/components/layout/Header';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -26,6 +25,24 @@ interface Delivery {
   volume: number;
   value: number;
   status: 'PENDENTE' | 'EM_ANDAMENTO' | 'REALIZADA' | 'PROBLEMA';
+  hasReceipt?: boolean;
+}
+
+// Interface para os dados da API
+interface ApiDelivery {
+  id: number;
+  nf_number: string;
+  client_name_extracted: string;
+  delivery_address: string;
+  delivery_volume?: number;
+  merchandise_value: string;
+  status: string;
+  driver_name: string;
+  created_at: string;
+  client_name?: string;
+  client_address?: string;
+  has_receipt?: boolean;
+  receipt_id?: string;
 }
 
 export const DriverDashboard = () => {
@@ -48,17 +65,41 @@ export const DriverDashboard = () => {
 
   const loadTodayDeliveries = async () => {
     try {
-      const response = await apiService.getTodayDeliveries(user?.id || '');
+      console.log('Carregando entregas para o motorista:', user?.id);
+      const response = await apiService.getDeliveries({ driver_id: user?.id || '' });
+      console.log('Resposta da API:', response);
+      
       if (response.success && response.data) {
-        setDeliveries(response.data as Delivery[]);
+        console.log('Dados recebidos:', response.data);
+        console.log('Tipo dos dados:', typeof response.data);
+        console.log('É array?', Array.isArray(response.data));
+        
+        // Converter dados da API para o formato esperado pelo componente
+        const formattedDeliveries: Delivery[] = (response.data as unknown as ApiDelivery[]).map(item => ({
+          id: item.id.toString(),
+          nfNumber: item.nf_number,
+          client: item.client_name_extracted,
+          address: item.delivery_address,
+          volume: item.delivery_volume ?? 1,
+          value: Number(item.merchandise_value),
+          status: item.has_receipt ? 'REALIZADA' : 
+                  item.status === 'DELIVERED' ? 'REALIZADA' : 
+                  item.status === 'IN_TRANSIT' ? 'EM_ANDAMENTO' : 
+                  item.status === 'PENDING' ? 'PENDENTE' : 'PROBLEMA',
+          hasReceipt: item.has_receipt || false
+        }));
+        console.log('Entregas formatadas:', formattedDeliveries);
+        setDeliveries(formattedDeliveries);
       } else {
+        console.error('Erro na resposta da API:', response.error);
         toast({
           title: "Erro ao carregar entregas",
-          description: "Não foi possível carregar suas entregas do dia",
+          description: response.error || "Não foi possível carregar suas entregas do dia",
           variant: "destructive",
         });
       }
     } catch (error) {
+      console.error('Erro ao carregar entregas:', error);
       toast({
         title: "Erro ao carregar entregas",
         description: "Não foi possível carregar suas entregas do dia",
@@ -95,10 +136,10 @@ export const DriverDashboard = () => {
 
   const getStatusColor = (status: string) => {
     switch (status) {
-      case 'REALIZADA': return 'bg-success text-success-foreground';
-      case 'EM_ANDAMENTO': return 'bg-warning text-warning-foreground';
-      case 'PROBLEMA': return 'bg-danger text-danger-foreground';
-      default: return 'bg-muted text-muted-foreground';
+      case 'REALIZADA': return 'bg-green-500 text-white';
+      case 'EM_ANDAMENTO': return 'bg-yellow-500 text-white';
+      case 'PROBLEMA': return 'bg-red-500 text-white';
+      default: return 'bg-gray-500 text-white';
     }
   };
 
@@ -129,21 +170,50 @@ export const DriverDashboard = () => {
   const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>, deliveryId: string) => {
     const file = e.target.files?.[0];
     if (!file) return;
+    
+    // Verificar se já existe um canhoto para esta entrega
+    const existingReceipt = deliveries.find(d => d.id === deliveryId)?.hasReceipt;
+    if (existingReceipt) {
+      toast({ 
+        title: 'Canhoto já existe', 
+        description: 'Esta entrega já possui um canhoto registrado.', 
+        variant: 'destructive' 
+      });
+      return;
+    }
+    
     setUploadingId(deliveryId);
     setUploadError(null);
     const formData = new FormData();
     formData.append('file', file);
     formData.append('deliveryId', deliveryId);
+    formData.append('driverId', user?.id || '');
     try {
       const response = await apiService.uploadReceipt(formData);
       if (response.success) {
-        toast({ title: 'Upload realizado com sucesso', description: '', variant: 'default' });
-        loadTodayDeliveries();
+        toast({ title: 'Upload realizado com sucesso', description: 'Canhoto enviado com sucesso - Entrega finalizada' });
+        // Atualizar o status da entrega localmente para REALIZADA
+        setDeliveries(prev => prev.map(d => 
+          d.id === deliveryId 
+            ? { ...d, status: 'REALIZADA', hasReceipt: true }
+            : d
+        ));
       } else {
-        setUploadError(response.error || 'Erro ao fazer upload do canhoto');
-        toast({ title: 'Erro no upload', description: response.error, variant: 'destructive' });
+        // Verificar se é erro de duplicata
+        if (response.error?.includes('Duplicate entry') || response.error?.includes('delivery_note_id')) {
+          setUploadError('Esta entrega já possui um canhoto registrado');
+          toast({ 
+            title: 'Canhoto já existe', 
+            description: 'Esta entrega já possui um canhoto registrado.', 
+            variant: 'destructive' 
+          });
+        } else {
+          setUploadError(response.error || 'Erro ao fazer upload do canhoto');
+          toast({ title: 'Erro no upload', description: response.error, variant: 'destructive' });
+        }
       }
     } catch (error) {
+      console.error('Erro no upload:', error);
       toast({ title: 'Erro no upload', description: 'Falha ao enviar o canhoto.', variant: 'destructive' });
     } finally {
       setUploadingId(null);
@@ -152,38 +222,32 @@ export const DriverDashboard = () => {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-background">
-        <Header />
-        <div className="flex items-center justify-center h-96">
-          <div className="w-8 h-8 border-4 border-primary/30 border-t-primary rounded-full animate-spin" />
-        </div>
+      <div className="flex items-center justify-center h-96">
+        <div className="w-8 h-8 border-4 border-blue-300 border-t-blue-600 rounded-full animate-spin" />
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-background">
-      <Header />
-      
-      <main className="container mx-auto px-4 py-6 space-y-6 max-w-md lg:max-w-4xl">
+    <main className="container mx-auto px-4 py-6 space-y-6 max-w-md lg:max-w-4xl">
         {/* Status Banner */}
-        <Card className={`border-2 ${dayStarted ? 'border-success bg-success/5' : 'border-warning bg-warning/5'}`}>
+        <Card className={`border-2 ${dayStarted ? 'border-green-500 bg-green-50' : 'border-yellow-500 bg-yellow-50'}`}>
           <CardContent className="pt-6">
             <div className="text-center space-y-4">
               <div className="flex items-center justify-center gap-2">
-                <div className={`w-3 h-3 rounded-full ${dayStarted ? 'bg-success' : 'bg-warning'} animate-pulse`} />
+                <div className={`w-3 h-3 rounded-full ${dayStarted ? 'bg-green-500' : 'bg-yellow-500'} animate-pulse`} />
                 <span className="font-medium">
                   {dayStarted ? 'Dia Iniciado' : 'Aguardando Início do Dia'}
                 </span>
               </div>
               
               {!dayStarted ? (
-                <Button onClick={handleStartDay} className="bg-gradient-primary w-full" size="lg">
+                <Button onClick={handleStartDay} className="bg-blue-600 hover:bg-blue-700 w-full" size="lg">
                   <Play className="mr-2 h-5 w-5" />
                   Iniciar Dia
                 </Button>
               ) : !routeStarted ? (
-                <Button onClick={handleStartRoute} className="bg-gradient-success w-full" size="lg">
+                <Button onClick={handleStartRoute} className="bg-green-600 hover:bg-green-700 w-full" size="lg">
                   <Route className="mr-2 h-5 w-5" />
                   Iniciar Rota
                 </Button>
@@ -202,9 +266,9 @@ export const DriverDashboard = () => {
           <Card>
             <CardContent className="pt-6">
               <div className="text-center">
-                <Package className="h-8 w-8 mx-auto text-primary mb-2" />
+                <Package className="h-8 w-8 mx-auto text-blue-600 mb-2" />
                 <div className="text-2xl font-bold">{deliveries.length}</div>
-                <p className="text-sm text-muted-foreground">Total Entregas</p>
+                <p className="text-sm text-gray-500">Total Entregas</p>
               </div>
             </CardContent>
           </Card>
@@ -212,11 +276,11 @@ export const DriverDashboard = () => {
           <Card>
             <CardContent className="pt-6">
               <div className="text-center">
-                <CheckCircle className="h-8 w-8 mx-auto text-success mb-2" />
+                <CheckCircle className="h-8 w-8 mx-auto text-green-600 mb-2" />
                 <div className="text-2xl font-bold">
                   {deliveries.filter(d => d.status === 'REALIZADA').length}
                 </div>
-                <p className="text-sm text-muted-foreground">Concluídas</p>
+                <p className="text-sm text-gray-500">Concluídas</p>
               </div>
             </CardContent>
           </Card>
@@ -239,7 +303,7 @@ export const DriverDashboard = () => {
               <Camera className="mr-3 h-4 w-4" />
               <div className="text-left">
                 <div className="font-medium">Fotografar Canhoto</div>
-                <div className="text-xs text-muted-foreground">Upload do comprovante</div>
+                <div className="text-xs text-gray-500">Upload do comprovante</div>
               </div>
             </Button>
             
@@ -251,7 +315,19 @@ export const DriverDashboard = () => {
               <MapPin className="mr-3 h-4 w-4" />
               <div className="text-left">
                 <div className="font-medium">Minha Localização</div>
-                <div className="text-xs text-muted-foreground">Ver rota atual</div>
+                <div className="text-xs text-gray-500">Ver rota atual</div>
+              </div>
+            </Button>
+
+            <Button 
+              variant="outline" 
+              className="justify-start h-12"
+              onClick={loadTodayDeliveries}
+            >
+              <Package className="mr-3 h-4 w-4" />
+              <div className="text-left">
+                <div className="font-medium">Testar API</div>
+                <div className="text-xs text-gray-500">Recarregar entregas</div>
               </div>
             </Button>
           </CardContent>
@@ -265,8 +341,8 @@ export const DriverDashboard = () => {
           <CardContent>
             {deliveries.length === 0 ? (
               <div className="text-center py-8">
-                <Package className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
-                <p className="text-muted-foreground">Nenhuma entrega programada para hoje</p>
+                <Package className="h-12 w-12 mx-auto text-gray-400 mb-4" />
+                <p className="text-gray-500">Nenhuma entrega programada para hoje</p>
               </div>
             ) : (
               <div className="space-y-4">
@@ -276,7 +352,7 @@ export const DriverDashboard = () => {
                       <div className="flex items-start justify-between mb-3">
                         <div>
                           <p className="font-medium">NF {delivery.nfNumber}</p>
-                          <p className="text-sm text-muted-foreground">{delivery.client}</p>
+                          <p className="text-sm text-gray-500">{delivery.client}</p>
                         </div>
                         <Badge className={getStatusColor(delivery.status)}>
                           {getStatusText(delivery.status)}
@@ -285,16 +361,16 @@ export const DriverDashboard = () => {
                       
                       <div className="space-y-2 text-sm">
                         <div className="flex items-center gap-2">
-                          <MapPin className="h-4 w-4 text-muted-foreground" />
-                          <span className="text-muted-foreground">{delivery.address}</span>
+                          <MapPin className="h-4 w-4 text-gray-500" />
+                          <span className="text-gray-500">{delivery.address}</span>
                         </div>
                         <div className="flex justify-between">
                           <span>Volume: {delivery.volume} itens</span>
-                          <span>Valor: R$ {delivery.value.toFixed(2)}</span>
+                          <span>Valor: R$ {delivery.value ? delivery.value.toFixed(2) : '0.00'}</span>
                         </div>
                       </div>
                       
-                      {delivery.status !== 'REALIZADA' && (
+                      {delivery.status !== 'REALIZADA' && !delivery.hasReceipt && (
                         <div className="mt-4 flex gap-2 items-center">
                           <Button size="sm" onClick={() => handleUploadClick(delivery.id)} disabled={uploadingId === delivery.id}>
                             {uploadingId === delivery.id ? 'Enviando...' : 'Fotografar Canhoto'}
@@ -308,8 +384,17 @@ export const DriverDashboard = () => {
                             onChange={(e) => handleFileChange(e, delivery.id)}
                           />
                           {uploadError && uploadingId === delivery.id && (
-                            <span className="text-destructive text-xs ml-2">{uploadError}</span>
+                            <span className="text-red-500 text-xs ml-2">{uploadError}</span>
                           )}
+                        </div>
+                      )}
+                      
+                      {delivery.hasReceipt && (
+                        <div className="mt-4 flex gap-2 items-center">
+                          <div className="flex items-center gap-2 text-green-600">
+                            <CheckCircle className="h-4 w-4" />
+                            <span className="text-sm">Canhoto enviado - Entrega finalizada</span>
+                          </div>
                         </div>
                       )}
                     </CardContent>
@@ -320,6 +405,7 @@ export const DriverDashboard = () => {
           </CardContent>
         </Card>
       </main>
-    </div>
   );
 };
+
+export default DriverDashboard;
