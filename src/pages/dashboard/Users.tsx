@@ -20,39 +20,66 @@ import {
 } from 'lucide-react';
 import { apiService } from '@/services/api';
 import { useToast } from '@/hooks/use-toast';
+import { useAuth } from '@/contexts/AuthContext';
 import { User } from '@/types/auth';
 
 export const Users = () => {
   const { toast } = useToast();
+  const { user: authUser } = useAuth(); // 🔒 Obter usuário autenticado para verificações de segurança
   const [users, setUsers] = useState<User[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [showCreateDialog, setShowCreateDialog] = useState(false);
   const [editingUser, setEditingUser] = useState<User | null>(null);
   
+  // Estado para empresas
+  const [companies, setCompanies] = useState<Array<{
+    id: string;
+    name: string;
+    domain: string;
+    email: string;
+    subscription_plan: string;
+  }>>([]);
+  const [companiesLoading, setCompaniesLoading] = useState(false);
+  
   const [formData, setFormData] = useState({
     name: '',
     username: '',
     email: '',
+    password: '', // Campo de senha
     role: '',
     cpf: '',
+    company_id: '', // Novo campo para empresa
     status: 'ATIVO'
   });
 
   useEffect(() => {
     loadUsers();
+    loadCompanies();
   }, []);
 
   const loadUsers = async () => {
     try {
       setLoading(true);
       const response = await apiService.getUsers();
-      if (response.success && response.data) {
-        setUsers(response.data);
+      if (response.success && Array.isArray(response.data)) {
+        // CORREÇÃO: Normaliza os dados da API para o tipo `User[]` esperado pelo estado.
+        const normalizedUsers: User[] = response.data.map((u: any) => ({
+          id: String(u.id),
+          name: u.full_name || u.name || 'Nome não informado',
+          full_name: u.full_name || u.name || 'Nome não informado',
+          username: u.username || '',
+          email: u.email || '',
+          role: u.user_type || u.role || 'N/A',
+          user_type: u.user_type || u.role || 'N/A',
+          is_active: typeof u.is_active === 'boolean' ? u.is_active : (u.status === 'ATIVO' || u.status === 'ACTIVE'),
+          status: u.status || (u.is_active ? 'ATIVO' : 'INATIVO'),
+        }));
+        setUsers(normalizedUsers);
       } else {
         toast({
           title: "Erro",
-          description: "Não foi possível carregar os usuários",
+          description: (response as any).message || "Erro ao carregar usuários",
           variant: "destructive",
         });
       }
@@ -67,9 +94,87 @@ export const Users = () => {
     }
   };
 
+  const loadCompanies = async () => {
+    setCompaniesLoading(true);
+    const userRole = authUser?.role || authUser?.user_type;
+
+    // CORREÇÃO: Se o usuário for MASTER, busca todas as empresas.
+    // Se for ADMIN ou outro, usa apenas a empresa do próprio usuário logado.
+    if (userRole === 'MASTER') {
+      try {
+        const response = await apiService.getManagementCompanies();
+        if (response.success && Array.isArray(response.data)) {
+          // CORREÇÃO: Normaliza os dados da API para o tipo esperado pelo estado 'companies'.
+          const normalizedCompanies = response.data.map((c: any) => ({
+            id: String(c.id),
+            name: c.name || 'Nome não informado',
+            domain: c.domain || '',
+            email: c.email || '',
+            subscription_plan: c.subscription_plan || 'N/A',
+          }));
+          setCompanies(normalizedCompanies);
+        } else {
+          toast({
+            title: "Erro",
+            description: (response as any).message || "Erro ao carregar empresas",
+            variant: "destructive",
+          });
+        }
+      } catch (error) {
+        toast({
+          title: "Erro",
+          description: "Erro de rede ao carregar empresas",
+          variant: "destructive",
+        });
+      } finally {
+        // CORREÇÃO: O 'finally' foi movido para dentro do bloco 'if' para ser associado ao 'try...catch'.
+        setCompaniesLoading(false);
+      }
+    } else if (authUser?.company_id && authUser?.company_name) {
+      // Para ADMIN e outros, a única opção de empresa é a dele mesmo.
+      setCompanies([
+        {
+          id: String(authUser.company_id),
+          name: authUser.company_name,
+          // Adiciona outros campos com valores padrão para manter a consistência da interface
+          domain: authUser.company_domain || '',
+          email: '',
+          subscription_plan: '',
+        },
+      ]);
+      // O loading é interrompido aqui para o caso de não ser MASTER
+      setCompaniesLoading(false);
+    }
+  };
+
   const handleCreateUser = async () => {
     try {
-      const response = await apiService.createUser(formData);
+      // Validação básica da senha
+      if (!formData.password || formData.password.length < 6) {
+        toast({
+          title: "Erro de Validação",
+          description: "A senha deve ter pelo menos 6 caracteres.",
+          variant: "destructive",
+        });
+        return;
+      }
+      
+      // Mapear os campos do formulário para o formato esperado pelo backend
+      const normalizedStatus = (formData.status || 'ATIVO').toUpperCase() === 'INATIVO' ? 'INATIVO' : 'ATIVO';
+
+      const userData = {
+        username: formData.username.trim(),
+        password: formData.password,
+        email: formData.email,
+        full_name: formData.name, // Mapear 'name' para 'full_name'
+        user_type: formData.role, // Mapear 'role' para 'user_type'
+        company_id: formData.company_id || undefined,
+        cpf: formData.cpf ? formData.cpf.trim() : undefined,
+        status: normalizedStatus,
+        is_active: normalizedStatus === 'ATIVO'
+      };
+      
+      const response = await apiService.createUser(userData);
       if (response.success && response.data) {
         toast({
           title: "Sucesso",
@@ -80,15 +185,17 @@ export const Users = () => {
           name: '',
           username: '',
           email: '',
+          password: '',
           role: '',
           cpf: '',
+          company_id: '',
           status: 'ATIVO'
         });
         loadUsers();
       } else {
         toast({
           title: "Erro",
-          description: response.error || "Erro ao criar usuário",
+          description: (response as any).message || "Erro ao criar usuário",
           variant: "destructive",
         });
       }
@@ -105,7 +212,17 @@ export const Users = () => {
     if (!editingUser) return;
     
     try {
-      const response = await apiService.updateUser(editingUser.id, formData);
+      const normalizedStatus = (formData.status || 'ATIVO').toUpperCase() === 'INATIVO' ? 'INATIVO' : 'ATIVO';
+      const updatePayload = {
+        email: formData.email,
+        full_name: formData.name,
+        user_type: formData.role,
+        cpf: formData.cpf ? formData.cpf.trim() : undefined,
+        status: normalizedStatus,
+        is_active: normalizedStatus === 'ATIVO'
+      };
+
+      const response = await apiService.updateUser(editingUser.id, updatePayload);
       if (response.success && response.data) {
         toast({
           title: "Sucesso",
@@ -116,15 +233,17 @@ export const Users = () => {
           name: '',
           username: '',
           email: '',
+          password: '',
           role: '',
           cpf: '',
+          company_id: '',
           status: 'ATIVO'
         });
         loadUsers();
       } else {
         toast({
           title: "Erro",
-          description: response.error || "Erro ao atualizar usuário",
+          description: (response as any).message || "Erro ao atualizar usuário",
           variant: "destructive",
         });
       }
@@ -137,11 +256,78 @@ export const Users = () => {
     }
   };
 
+  const handleDeleteUser = async (userId: string, userName: string) => {
+    // Confirmação antes de excluir
+    const confirmed = window.confirm(
+      `Tem certeza que deseja excluir permanentemente o usuário "${userName}"?\n\nEsta ação não pode ser desfeita e o usuário será completamente removido do banco de dados.`
+    );
+    
+    if (!confirmed) return;
+    
+    try {
+      const response = await apiService.deleteUser(userId);
+      if (response.success) {
+        toast({
+          title: "Sucesso",
+          description: "Usuário excluído permanentemente do sistema!",
+        });
+        loadUsers(); // Recarregar a lista de usuários
+      } else {
+        toast({
+          title: "Erro",
+          description: (response as any).message || "Erro ao excluir usuário",
+          variant: "destructive",
+        });
+      }
+    } catch (error) {
+      toast({
+        title: "Erro",
+        description: "Erro ao excluir usuário",
+        variant: "destructive",
+      });
+    }
+  };
+
   const filteredUsers = users.filter(user =>
     (user.name || user.full_name || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
     (user.username || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
     (user.email || '').toLowerCase().includes(searchTerm.toLowerCase())
   );
+
+  // 🔒 Função para obter tipos de usuário permitidos baseado no perfil do usuário logado
+  const getAllowedUserTypes = () => {
+    const userRole = authUser?.role || authUser?.user_type;
+    
+    switch (userRole) {
+      case 'MASTER':
+        // Master pode criar qualquer tipo de usuário
+        return [
+          { value: 'ADMIN', label: 'Administrador' },
+          { value: 'SUPERVISOR', label: 'Supervisor' },
+          { value: 'OPERATOR', label: 'Operador' },
+          { value: 'DRIVER', label: 'Motorista' },
+          { value: 'CLIENT', label: 'Cliente' }
+        ];
+      case 'ADMIN':
+      case 'ADMINISTRADOR':
+        // Admin pode criar: supervisor, operador, motorista e cliente
+        return [
+          { value: 'SUPERVISOR', label: 'Supervisor' },
+          { value: 'OPERATOR', label: 'Operador' },
+          { value: 'DRIVER', label: 'Motorista' },
+          { value: 'CLIENT', label: 'Cliente' }
+        ];
+      case 'SUPERVISOR':
+        // Supervisor pode criar apenas: operador e motorista
+        return [
+          { value: 'OPERATOR', label: 'Operador' },
+          { value: 'DRIVER', label: 'Motorista' }
+        ];
+      default:
+        // Outros tipos de usuário não podem criar usuários
+        return [];
+    }
+  };
 
   const getRoleBadge = (role: string) => {
     const roleColors: Record<string, string> = {
@@ -164,7 +350,16 @@ export const Users = () => {
     );
   };
 
-  const getStatusBadge = (isActive: number | boolean) => {
+  const getStatusBadge = (status: number | boolean | string | undefined) => {
+    const isActive =
+      typeof status === 'string'
+        ? (() => {
+            const s = status.trim().toLowerCase();
+            if (s === 'ativo' || s === 'active' || s === '1') return true;
+            if (s === 'inativo' || s === 'inactive' || s === '0') return false;
+            return Boolean(status);
+          })()
+        : Boolean(status);
     return isActive ? (
       <Badge className="bg-green-100 text-green-800">Ativo</Badge>
     ) : (
@@ -183,13 +378,15 @@ export const Users = () => {
           </p>
         </div>
         
-        <Dialog open={showCreateDialog} onOpenChange={setShowCreateDialog}>
-          <DialogTrigger asChild>
-            <Button className="flex items-center gap-2">
-              <Plus className="h-4 w-4" />
-              Novo Usuário
-            </Button>
-          </DialogTrigger>
+        {/* 🔒 Só mostra o botão se o usuário tiver permissão para criar usuários */}
+        {getAllowedUserTypes().length > 0 && (
+          <Dialog open={showCreateDialog} onOpenChange={setShowCreateDialog}>
+            <DialogTrigger asChild>
+              <Button className="flex items-center gap-2">
+                <Plus className="h-4 w-4" />
+                Novo Usuário
+              </Button>
+            </DialogTrigger>
           <DialogContent className="sm:max-w-[425px]">
             <DialogHeader>
               <DialogTitle>Criar Novo Usuário</DialogTitle>
@@ -224,17 +421,30 @@ export const Users = () => {
                 />
               </div>
               <div className="grid gap-2">
+                <Label htmlFor="password">Senha *</Label>
+                <Input
+                  id="password"
+                  type="password"
+                  value={formData.password}
+                  onChange={(e) => setFormData(prev => ({ ...prev, password: e.target.value }))}
+                  placeholder="Digite a senha (mínimo 6 caracteres)"
+                  minLength={6}
+                  required
+                />
+              </div>
+              <div className="grid gap-2">
                 <Label htmlFor="role">Perfil</Label>
                 <Select value={formData.role} onValueChange={(value) => setFormData(prev => ({ ...prev, role: value }))}>
                   <SelectTrigger>
                     <SelectValue placeholder="Selecione o perfil" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="ADMIN">Administrador</SelectItem>
-                    <SelectItem value="SUPERVISOR">Supervisor</SelectItem>
-                    <SelectItem value="OPERATOR">Operador</SelectItem>
-                    <SelectItem value="DRIVER">Motorista</SelectItem>
-                    <SelectItem value="CLIENT">Cliente</SelectItem>
+                    {/* 🔒 Mostra apenas os tipos de usuário permitidos para o usuário logado */}
+                    {getAllowedUserTypes().map((userType) => (
+                      <SelectItem key={userType.value} value={userType.value}>
+                        {userType.label}
+                      </SelectItem>
+                    ))}
                   </SelectContent>
                 </Select>
               </div>
@@ -247,6 +457,25 @@ export const Users = () => {
                   placeholder="Digite o CPF"
                 />
               </div>
+              <div className="grid gap-2">
+                <Label htmlFor="company">Empresa *</Label>
+                <Select 
+                  value={formData.company_id} 
+                  onValueChange={(value) => setFormData(prev => ({ ...prev, company_id: value }))}
+                  disabled={companiesLoading}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder={companiesLoading ? "Carregando empresas..." : "Selecione a empresa"} />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {companies.map((company) => (
+                      <SelectItem key={company.id} value={company.id}>
+                        {company.name} ({company.domain})
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
             </div>
             <DialogFooter>
               <Button variant="outline" onClick={() => setShowCreateDialog(false)}>
@@ -258,6 +487,7 @@ export const Users = () => {
             </DialogFooter>
           </DialogContent>
         </Dialog>
+        )}
       </div>
 
       {/* Search and Filters */}
@@ -320,26 +550,46 @@ export const Users = () => {
                     <TableCell>{getStatusBadge(user.status || user.is_active)}</TableCell>
                     <TableCell className="text-right">
                       <div className="flex items-center justify-end gap-2">
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          onClick={() => {
-                            setEditingUser(user);
-                            setFormData({
-                              name: user.name || user.full_name,
-                              username: user.username,
-                              email: user.email,
-                              role: user.role || user.user_type,
-                              cpf: user.cpf || '',
-                              status: user.status || (user.is_active ? 'ATIVO' : 'INATIVO')
-                            });
-                          }}
-                        >
-                          <Edit className="h-4 w-4" />
-                        </Button>
-                        <Button variant="ghost" size="icon">
-                          <Trash2 className="h-4 w-4" />
-                        </Button>
+                        {/* 🔒 PROTEÇÃO: Ocultar botões de edição/exclusão para usuários MASTER quando o usuário logado não é MASTER */}
+                        {!((user.role === 'MASTER' || user.user_type === 'MASTER') && authUser?.user_type !== 'MASTER') && (
+                          <>
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              onClick={() => {
+                                setEditingUser(user);
+                                setFormData({
+                                  name: user.name || user.full_name,
+                                  username: user.username,
+                                  email: user.email,
+                                  password: '',
+                                  role: user.role || user.user_type,
+                                  cpf: user.cpf || '',
+                                  company_id: (user as any).company_id ? String((user as any).company_id) : '',
+                                  status: typeof user.status === 'string' ? user.status : (user.is_active ? 'ATIVO' : 'INATIVO')
+                                });
+                              }}
+                              title={(user.role === 'MASTER' || user.user_type === 'MASTER') ? 'Editar usuário MASTER' : 'Editar usuário'}
+                            >
+                              <Edit className="h-4 w-4" />
+                            </Button>
+                            <Button 
+                              variant="ghost" 
+                              size="icon"
+                              onClick={() => handleDeleteUser(user.id, user.name || user.full_name || user.username)}
+                              className="text-red-600 hover:text-red-700 hover:bg-red-50"
+                              title={(user.role === 'MASTER' || user.user_type === 'MASTER') ? 'Excluir usuário MASTER' : 'Excluir usuário'}
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
+                          </>
+                        )}
+                        {/* Mostrar indicador visual quando as ações estão bloqueadas */}
+                        {(user.role === 'MASTER' || user.user_type === 'MASTER') && authUser?.user_type !== 'MASTER' && (
+                          <span className="text-xs text-gray-500 italic px-2 py-1 bg-gray-100 rounded">
+                            Protegido
+                          </span>
+                        )}
                       </div>
                     </TableCell>
                   </TableRow>
@@ -389,11 +639,12 @@ export const Users = () => {
                   <SelectValue placeholder="Selecione o perfil" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="ADMIN">Administrador</SelectItem>
-                  <SelectItem value="SUPERVISOR">Supervisor</SelectItem>
-                  <SelectItem value="OPERATOR">Operador</SelectItem>
-                  <SelectItem value="DRIVER">Motorista</SelectItem>
-                  <SelectItem value="CLIENT">Cliente</SelectItem>
+                  {/* 🔒 Mostra apenas os tipos de usuário permitidos para o usuário logado */}
+                  {getAllowedUserTypes().map((userType) => (
+                    <SelectItem key={userType.value} value={userType.value}>
+                      {userType.label}
+                    </SelectItem>
+                  ))}
                 </SelectContent>
               </Select>
             </div>
@@ -420,4 +671,4 @@ export const Users = () => {
   );
 };
 
-export default Users; 
+export default Users;

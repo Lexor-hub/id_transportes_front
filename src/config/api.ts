@@ -1,17 +1,17 @@
-// Configuração centralizada da API - Multi-Tenant System
+﻿// ConfiguraÃ§Ã£o centralizada da API - Multi-Tenant System
 export const API_CONFIG = {
-  // ✅ Portas corretas dos serviços
-  AUTH_SERVICE: 'http://localhost:3000',    // ✅ auth-service (onde está o endpoint /api/auth/companies)
-  AUTH_USERS: 'http://localhost:3001',      // ✅ auth-users-service (não tem endpoint de companies)
-  DRIVERS: 'http://localhost:3002',         // ✅ drivers-vehicles-service
-  DELIVERIES: 'http://localhost:3003',      // ✅ deliveries-routes-service
-  RECEIPTS: 'http://localhost:3004',        // ✅ receipts-ocr-service
-  TRACKING: 'http://localhost:3005',        // ✅ tracking-service
-  REPORTS: 'http://localhost:3006',         // ✅ reports-service
-  COMPANIES: 'http://localhost:3007'        // ✅ companies-service
+  // âœ… Portas corretas dos serviÃ§os
+  AUTH_SERVICE: 'http://localhost:3001',    // âœ… auth-service (onde estÃ¡ o endpoint /api/auth/companies)
+  AUTH_USERS: 'http://localhost:3008',      // ✅ auth-users-service (cadastro e gestão de usuários)
+  DRIVERS: 'http://localhost:3002',         // âœ… drivers-vehicles-service
+  DELIVERIES: 'http://localhost:3003',      // âœ… deliveries-routes-service
+  RECEIPTS: 'http://localhost:3004',        // âœ… receipts-ocr-service
+  TRACKING: 'http://localhost:3005',        // âœ… tracking-service
+  REPORTS: 'http://localhost:3006',         // âœ… reports-service
+  COMPANIES: 'http://localhost:3007'        // âœ… companies-service
 };
 
-// Configuração para variáveis de ambiente (produção)
+// ConfiguraÃ§Ã£o para variÃ¡veis de ambiente (produÃ§Ã£o)
 export const getApiConfig = () => ({
   AUTH_SERVICE: import.meta.env.VITE_AUTH_API_URL || API_CONFIG.AUTH_SERVICE,
   AUTH_USERS: import.meta.env.VITE_AUTH_USERS_API_URL || API_CONFIG.AUTH_USERS,
@@ -23,57 +23,57 @@ export const getApiConfig = () => ({
   COMPANIES: import.meta.env.VITE_COMPANIES_API_URL || API_CONFIG.COMPANIES,
 });
 
-// Função auxiliar para determinar a base URL pelo endpoint
+// FunÃ§Ã£o auxiliar para determinar a base URL pelo endpoint
 export function getBaseUrl(endpoint: string): string {
   const config = getApiConfig();
   
-  // ✅ Autenticação (inclui /api/auth/companies)
+  // âœ… AutenticaÃ§Ã£o (inclui /api/auth/companies)
   if (endpoint.startsWith('/api/auth')) {
     return config.AUTH_SERVICE;
   }
   
-  // ✅ Usuários (gerenciamento de usuários)
+  // âœ… UsuÃ¡rios (gerenciamento de usuÃ¡rios)
   if (endpoint.startsWith('/api/users')) {
     return config.AUTH_USERS;
   }
   
-  // ✅ Motoristas e Veículos
+  // âœ… Motoristas e VeÃ­culos
   if (endpoint.startsWith('/api/drivers') || endpoint.startsWith('/api/vehicles')) {
     return config.DRIVERS;
   }
   
-  // ✅ Entregas, Rotas e Ocorrências
+  // âœ… Entregas, Rotas e OcorrÃªncias
   if (endpoint.startsWith('/api/deliveries') || 
       endpoint.startsWith('/api/routes') || 
       endpoint.startsWith('/api/occurrences')) {
     return config.DELIVERIES;
   }
   
-  // ✅ Comprovantes e OCR
+  // âœ… Comprovantes e OCR
   if (endpoint.startsWith('/api/receipts')) {
     return config.RECEIPTS;
   }
   
-  // ✅ Rastreamento
+  // âœ… Rastreamento
   if (endpoint.startsWith('/api/tracking')) {
     return config.TRACKING;
   }
   
-  // ✅ Relatórios e Dashboard
+  // âœ… RelatÃ³rios e Dashboard
   if (endpoint.startsWith('/api/reports') || endpoint.startsWith('/api/dashboard')) {
     return config.REPORTS;
   }
   
-  // ✅ Empresas
+  // âœ… Empresas
   if (endpoint.startsWith('/api/companies')) {
     return config.COMPANIES;
   }
   
-  // Fallback para autenticação
+  // Fallback para autenticaÃ§Ã£o
   return config.AUTH_SERVICE;
 }
 
-// Tipos para configuração
+// Tipos para configuraÃ§Ã£o
 export interface ApiConfig {
   AUTH_SERVICE: string;
   AUTH_USERS: string;
@@ -85,5 +85,5 @@ export interface ApiConfig {
   COMPANIES: string;
 }
 
-// Exportação padrão
+// ExportaÃ§Ã£o padrÃ£o
 export default API_CONFIG; 
