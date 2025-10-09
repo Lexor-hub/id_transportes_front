@@ -1,4 +1,12 @@
-type ApiConfig = {
+﻿import { z } from 'zod';
+
+// 1. Definição da Interface e Schema de Validação (Zod)
+// =========================================================================
+
+/**
+ * Define a estrutura de configuração da API, com URLs para cada microserviço.
+ */
+export interface ApiConfig {
   AUTH_SERVICE: string;
   AUTH_USERS: string;
   DRIVERS: string;
@@ -7,10 +15,27 @@ type ApiConfig = {
   TRACKING: string;
   REPORTS: string;
   COMPANIES: string;
-  API_GATEWAY: string;
-};
+}
 
-const DEFAULT_CONFIG: ApiConfig = {
+const ApiConfigSchema = z.object({
+  AUTH_SERVICE: z.string().url(),
+  AUTH_USERS: z.string().url(),
+  DRIVERS: z.string().url(),
+  DELIVERIES: z.string().url(),
+  RECEIPTS: z.string().url(),
+  TRACKING: z.string().url(),
+  REPORTS: z.string().url(),
+  COMPANIES: z.string().url(),
+});
+
+// 2. Configuração Padrão (Fallback)
+// =========================================================================
+
+/**
+ * Configuração padrão para ambiente de desenvolvimento local.
+ * Usada como fallback se as variáveis de ambiente não estiverem definidas.
+ */
+export const API_CONFIG_DEFAULT: ApiConfig = {
   AUTH_SERVICE: 'http://localhost:3000',
   AUTH_USERS: 'http://localhost:3001',
   DRIVERS: 'http://localhost:3002',
@@ -19,78 +44,75 @@ const DEFAULT_CONFIG: ApiConfig = {
   TRACKING: 'http://localhost:3005',
   REPORTS: 'http://localhost:3006',
   COMPANIES: 'http://localhost:3007',
-  API_GATEWAY: 'http://localhost:3008',
 };
 
-const trimEnv = (value: unknown): string | undefined => {
-  if (typeof value !== 'string') return undefined;
-  const trimmed = value.trim();
-  return trimmed.length > 0 ? trimmed : undefined;
-};
+// 3. Função para Obter a Configuração (com Variáveis de Ambiente)
+// =========================================================================
 
-const stripTrailingSlash = (url: string): string =>
-  url.endsWith('/') ? url.slice(0, -1) : url;
+/**
+ * Obtém a configuração da API a partir das variáveis de ambiente (VITE_*),
+ * com fallback para os valores padrão. Valida a configuração usando Zod.
+ *
+ * Esta função usa um closure (IIFE) para criar um cache privado e garantir
+ * que a configuração seja calculada e validada apenas uma vez.
+ *
+ * @returns {ApiConfig} A configuração da API validada.
+ */
+export const getApiConfig = ((): () => ApiConfig => {
+  let validatedConfig: ApiConfig | null = null;
 
-const env = import.meta.env as Record<string, string | undefined>;
+  return (): ApiConfig => {
+    if (validatedConfig) {
+      return validatedConfig;
+    }
 
-export const API_CONFIG: ApiConfig = {
-  AUTH_SERVICE: stripTrailingSlash(
-    trimEnv(env.VITE_AUTH_API_URL) ?? DEFAULT_CONFIG.AUTH_SERVICE
-  ),
-  AUTH_USERS: stripTrailingSlash(
-    trimEnv(env.VITE_AUTH_USERS_API_URL) ?? DEFAULT_CONFIG.AUTH_USERS
-  ),
-  DRIVERS: stripTrailingSlash(
-    trimEnv(env.VITE_DRIVERS_API_URL) ?? DEFAULT_CONFIG.DRIVERS
-  ),
-  DELIVERIES: stripTrailingSlash(
-    trimEnv(env.VITE_DELIVERIES_API_URL) ?? DEFAULT_CONFIG.DELIVERIES
-  ),
-  RECEIPTS: stripTrailingSlash(
-    trimEnv(env.VITE_RECEIPTS_API_URL) ?? DEFAULT_CONFIG.RECEIPTS
-  ),
-  TRACKING: stripTrailingSlash(
-    trimEnv(env.VITE_TRACKING_API_URL) ?? DEFAULT_CONFIG.TRACKING
-  ),
-  REPORTS: stripTrailingSlash(
-    trimEnv(env.VITE_REPORTS_API_URL) ?? DEFAULT_CONFIG.REPORTS
-  ),
-  COMPANIES: stripTrailingSlash(
-    trimEnv(env.VITE_COMPANIES_API_URL) ?? DEFAULT_CONFIG.COMPANIES
-  ),
-  API_GATEWAY: stripTrailingSlash(
-    trimEnv(env.VITE_API_BASE_URL) ??
-      trimEnv(env.VITE_GATEWAY_API_URL) ??
-      DEFAULT_CONFIG.API_GATEWAY
-  ),
-};
+    const envConfig = {
+      AUTH_SERVICE: import.meta.env.VITE_AUTH_API_URL,
+      AUTH_USERS: import.meta.env.VITE_AUTH_USERS_API_URL,
+      DRIVERS: import.meta.env.VITE_DRIVERS_API_URL,
+      DELIVERIES: import.meta.env.VITE_DELIVERIES_API_URL,
+      RECEIPTS: import.meta.env.VITE_RECEIPTS_API_URL,
+      TRACKING: import.meta.env.VITE_TRACKING_API_URL,
+      REPORTS: import.meta.env.VITE_REPORTS_API_URL,
+      COMPANIES: import.meta.env.VITE_COMPANIES_API_URL,
+    };
 
-export const API_BASE_URL = API_CONFIG.API_GATEWAY;
+    const mergedConfig = {
+      ...API_CONFIG_DEFAULT,
+      ...Object.fromEntries(Object.entries(envConfig).filter(([, v]) => v)),
+    };
 
-export const getApiConfig = (): ApiConfig => API_CONFIG;
+    try {
+      validatedConfig = ApiConfigSchema.parse(mergedConfig);
+      return validatedConfig;
+    } catch (error) {
+      console.error('Erro de validação nas variáveis de ambiente da API:', error);
+      throw new Error('Configuração de API inválida.');
+    }
+  };
+})();
 
-export const getBaseUrl = (endpoint: string): string => {
-  const normalized = endpoint.startsWith('/') ? endpoint : `/${endpoint}`;
+// 4. Função para Determinar a URL Base (Roteamento de Endpoints)
+// =========================================================================
 
-  if (normalized.startsWith('/api/auth')) return API_CONFIG.AUTH_SERVICE;
-  if (normalized.startsWith('/api/users')) return API_CONFIG.AUTH_USERS;
-  if (normalized.startsWith('/api/drivers') || normalized.startsWith('/api/vehicles')) {
-    return API_CONFIG.DRIVERS;
-  }
-  if (
-    normalized.startsWith('/api/deliveries') ||
-    normalized.startsWith('/api/routes') ||
-    normalized.startsWith('/api/occurrences')
-  ) {
-    return API_CONFIG.DELIVERIES;
-  }
-  if (normalized.startsWith('/api/receipts')) return API_CONFIG.RECEIPTS;
-  if (normalized.startsWith('/api/tracking')) return API_CONFIG.TRACKING;
-  if (normalized.startsWith('/api/reports')) return API_CONFIG.REPORTS;
-  if (normalized.startsWith('/api/companies')) return API_CONFIG.COMPANIES;
+/**
+ * Determina a URL base correta para um determinado endpoint, roteando
+ * a requisição para o microserviço apropriado.
+ * @param {string} endpoint - O endpoint da API (ex: '/api/auth/login').
+ * @returns {string} A URL base do serviço correspondente.
+ */
+export function getBaseUrl(endpoint: string): string {
+  const config = getApiConfig();
 
-  return API_CONFIG.API_GATEWAY || API_CONFIG.AUTH_SERVICE;
-};
+  if (endpoint.startsWith('/api/auth')) return config.AUTH_SERVICE;
+  if (endpoint.startsWith('/api/users')) return config.AUTH_USERS;
+  if (endpoint.startsWith('/api/drivers') || endpoint.startsWith('/api/vehicles')) return config.DRIVERS;
+  if (endpoint.startsWith('/api/deliveries') || endpoint.startsWith('/api/routes') || endpoint.startsWith('/api/occurrences')) return config.DELIVERIES;
+  if (endpoint.startsWith('/api/receipts')) return config.RECEIPTS;
+  if (endpoint.startsWith('/api/tracking')) return config.TRACKING;
+  if (endpoint.startsWith('/api/reports') || endpoint.startsWith('/api/dashboard')) return config.REPORTS;
+  if (endpoint.startsWith('/api/companies')) return config.COMPANIES;
 
-export const resolveApiUrl = (endpoint: string): string =>
-  `${getBaseUrl(endpoint)}${endpoint.startsWith('/') ? endpoint : `/${endpoint}`}`;
+  console.warn(`[getBaseUrl] Rota não mapeada para o endpoint: "${endpoint}". Usando AUTH_SERVICE como fallback.`);
+  return config.AUTH_SERVICE;
+}
