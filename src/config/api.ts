@@ -11,20 +11,19 @@ const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:3008
 export const API_CONFIG = {
   // Todas as chaves apontam para a mesma URL base, garantindo que o frontend
   // não tente acessar 'localhost' em produção.
-  AUTH_SERVICE: API_BASE_URL, // Para /api/auth/*
-  AUTH_USERS: API_BASE_URL,   // Para /api/users/*
-  COMPANIES: API_BASE_URL,    // Para /api/companies/*
-  DRIVERS: API_BASE_URL,      // Para /api/drivers/*
-  DELIVERIES: API_BASE_URL,   // Para /api/deliveries/*
-  RECEIPTS: API_BASE_URL,     // Para /api/receipts/*
-  TRACKING: API_BASE_URL,     // Para /api/tracking/*
-  REPORTS: API_BASE_URL,      // Para /api/reports/*
+  AUTH_SERVICE: API_BASE_URL,
+  AUTH_USERS: API_BASE_URL,
+  COMPANIES: API_BASE_URL,
+  DRIVERS: API_BASE_URL,
+  DELIVERIES: API_BASE_URL,
+  RECEIPTS: API_BASE_URL,
+  TRACKING: API_BASE_URL,
+  REPORTS: API_BASE_URL,
 };
 
 // 3. Função getBaseUrl simplificada.
 //    Como todas as chamadas passam pelo mesmo gateway, esta função sempre retorna a URL base.
 export function getBaseUrl(endpoint: string): string {
-  // A lógica de roteamento complexa foi removida. Sempre usamos a URL base.
   return API_BASE_URL;
 }
 
