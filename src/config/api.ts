@@ -1,9 +1,9 @@
 ﻿// ✅ Arquivo de configuração de API simplificado para produção e desenvolvimento
 
 // 1. Define a URL base da API.
-//    - Em produção (Vercel), usará a variável de ambiente VITE_API_BASE_URL (ex: https://idtransporteback-production.up.railway.app).
-//    - Em desenvolvimento, usará http://localhost:3008, a porta do serviço principal (auth-users-service).
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:3008';
+//    - Em produção (Vercel), usará a variável de ambiente VITE_API_BASE_URL.
+//    - Em desenvolvimento, usará http://localhost:3008 (a porta do serviço principal).
+export const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:3008';
 
 // 2. Cria um objeto de configuração unificado.
 //    Todos os serviços serão acessados através da mesma URL base,
@@ -20,12 +20,6 @@ export const API_CONFIG = {
   TRACKING: API_BASE_URL,
   REPORTS: API_BASE_URL,
 };
-
-// 3. Função getBaseUrl simplificada.
-//    Como todas as chamadas passam pelo mesmo gateway, esta função sempre retorna a URL base.
-export function getBaseUrl(endpoint: string): string {
-  return API_BASE_URL;
-}
 
 // ExportaÃ§Ã£o padrÃ£o
 export default API_CONFIG; 
