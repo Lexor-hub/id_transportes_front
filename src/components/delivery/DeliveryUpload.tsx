@@ -971,7 +971,7 @@ const handleSaveDelivery = async () => {
 
   return (
     <Dialog open={open} onOpenChange={(o) => { if (!o) resetForm(); onOpenChange(o); }}>
-      <DialogContent className="sm:max-w-[900px] max-h-[90vh] overflow-y-auto">
+      <DialogContent className="sm:max-w-4xl md:max-w-5xl lg:max-w-6xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <FileText className="h-5 w-5" />
@@ -1084,7 +1084,7 @@ const handleSaveDelivery = async () => {
 
             <div className="space-y-4">
               <h3 className="text-sm font-semibold text-muted-foreground">Dados da Nota Fiscal</h3>
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                 <div className="space-y-2">
                   <Label>NÃºmero</Label>
                   <Input value={structuredData.nf_data.numero} onChange={(e) => updateStructuredField('nf_data', 'numero', e.target.value)} disabled={!isEditing} />
@@ -1093,7 +1093,7 @@ const handleSaveDelivery = async () => {
                   <Label>SÃ©rie</Label>
                   <Input value={structuredData.nf_data.serie} onChange={(e) => updateStructuredField('nf_data', 'serie', e.target.value)} disabled={!isEditing} />
                 </div>
-                <div className="space-y-2 md:col-span-1">
+                <div className="space-y-2 md:col-span-2 lg:col-span-1">
                   <Label>Chave de Acesso</Label>
                   <Input value={structuredData.nf_data.chave} onChange={(e) => updateStructuredField('nf_data', 'chave', e.target.value)} disabled={!isEditing} />
                 </div>
@@ -1114,7 +1114,7 @@ const handleSaveDelivery = async () => {
 
             <div className="space-y-4">
               <h3 className="text-sm font-semibold text-muted-foreground">Remetente</h3>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                 <div className="space-y-2">
                   <Label>RazÃ£o Social</Label>
                   <Input value={structuredData.remetente.razao_social} onChange={(e) => updateStructuredField('remetente', 'razao_social', e.target.value)} disabled={!isEditing} />
@@ -1123,7 +1123,7 @@ const handleSaveDelivery = async () => {
                   <Label>CNPJ/CPF</Label>
                   <Input value={structuredData.remetente.cnpj_cpf} onChange={(e) => updateStructuredField('remetente', 'cnpj_cpf', e.target.value)} disabled={!isEditing} />
                 </div>
-                <div className="space-y-2 md:col-span-2">
+                <div className="space-y-2 md:col-span-2 lg:col-span-3">
                   <Label>EndereÃ§o</Label>
                   <Input value={structuredData.remetente.endereco} onChange={(e) => updateStructuredField('remetente', 'endereco', e.target.value)} disabled={!isEditing} />
                 </div>
@@ -1152,7 +1152,7 @@ const handleSaveDelivery = async () => {
 
             <div className="space-y-4">
               <h3 className="text-sm font-semibold text-muted-foreground">DestinatÃ¡rio</h3>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                 <div className="space-y-2">
                   <Label>RazÃ£o Social</Label>
                   <Input value={structuredData.destinatario.razao_social} onChange={(e) => updateStructuredField('destinatario', 'razao_social', e.target.value)} disabled={!isEditing} />
@@ -1161,7 +1161,7 @@ const handleSaveDelivery = async () => {
                   <Label>CNPJ/CPF</Label>
                   <Input value={structuredData.destinatario.cnpj_cpf} onChange={(e) => updateStructuredField('destinatario', 'cnpj_cpf', e.target.value)} disabled={!isEditing} />
                 </div>
-                <div className="space-y-2 md:col-span-2">
+                <div className="space-y-2 md:col-span-2 lg:col-span-3">
                   <Label>EndereÃ§o</Label>
                   <Input value={structuredData.destinatario.endereco} onChange={(e) => updateStructuredField('destinatario', 'endereco', e.target.value)} disabled={!isEditing} />
                 </div>
@@ -1190,7 +1190,7 @@ const handleSaveDelivery = async () => {
 
             <div className="space-y-4">
               <h3 className="text-sm font-semibold text-muted-foreground">Valores</h3>
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                 <div className="space-y-2">
                   <Label>Valor Total da Nota</Label>
                   <Input value={structuredData.valores.valor_total_nota} onChange={(e) => updateStructuredField('valores', 'valor_total_nota', e.target.value)} disabled={!isEditing} />
@@ -1232,7 +1232,7 @@ const handleSaveDelivery = async () => {
 
             <div className="space-y-4">
               <h3 className="text-sm font-semibold text-muted-foreground">Transportadora</h3>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                 <div className="space-y-2">
                   <Label>RazÃ£o Social</Label>
                   <Input value={structuredData.transportadora.razao_social} onChange={(e) => updateStructuredField('transportadora', 'razao_social', e.target.value)} disabled={!isEditing} />
@@ -1241,7 +1241,7 @@ const handleSaveDelivery = async () => {
                   <Label>CNPJ/CPF</Label>
                   <Input value={structuredData.transportadora.cnpj_cpf} onChange={(e) => updateStructuredField('transportadora', 'cnpj_cpf', e.target.value)} disabled={!isEditing} />
                 </div>
-                <div className="space-y-2 md:col-span-2">
+                <div className="space-y-2 md:col-span-2 lg:col-span-3">
                   <Label>EndereÃ§o</Label>
                   <Input value={structuredData.transportadora.endereco} onChange={(e) => updateStructuredField('transportadora', 'endereco', e.target.value)} disabled={!isEditing} />
                 </div>
@@ -1262,7 +1262,7 @@ const handleSaveDelivery = async () => {
 
             <div className="space-y-4">
               <h3 className="text-sm font-semibold text-muted-foreground">Volumes</h3>
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                 <div className="space-y-2">
                   <Label>Quantidade</Label>
                   <Input value={structuredData.volumes.quantidade} onChange={(e) => updateStructuredField('volumes', 'quantidade', e.target.value)} disabled={!isEditing} />
@@ -1292,7 +1292,7 @@ const handleSaveDelivery = async () => {
 
             <div className="space-y-4">
               <h3 className="text-sm font-semibold text-muted-foreground">Impostos</h3>
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                 <div className="space-y-2">
                   <Label>Base de CÃ¡lculo ICMS</Label>
                   <Input value={structuredData.impostos.base_calculo_icms} onChange={(e) => updateStructuredField('impostos', 'base_calculo_icms', e.target.value)} disabled={!isEditing} />
@@ -1330,7 +1330,7 @@ const handleSaveDelivery = async () => {
               ) : (
                 <div className="space-y-3">
                   {structuredData.duplicatas.map((duplicata, index) => (
-                    <div key={index} className="grid grid-cols-1 md:grid-cols-4 gap-4 items-end border rounded-md p-3">
+                    <div key={index} className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 items-end border rounded-md p-3">
                       <div className="space-y-2">
                         <Label>Identificador</Label>
                         <Input value={duplicata.identificador} onChange={(e) => updateDuplicataField(index, 'identificador', e.target.value)} disabled={!isEditing} />
@@ -1368,13 +1368,13 @@ const handleSaveDelivery = async () => {
               ) : (
                 <div className="space-y-4">
                   {structuredData.itens_de_linha.map((item, index) => (
-                    <div key={index} className="border rounded-md p-3 space-y-3">
-                      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+                    <div key={index} className="border rounded-md p-4 space-y-3">
+                      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
                         <div className="space-y-2">
                           <Label>CÃ³digo</Label>
                           <Input value={item.codigo_prod} onChange={(e) => updateItemField(index, 'codigo_prod', e.target.value)} disabled={!isEditing} />
                         </div>
-                        <div className="space-y-2 md:col-span-2">
+                        <div className="space-y-2 sm:col-span-2 md:col-span-3 lg:col-span-2">
                           <Label>DescriÃ§Ã£o</Label>
                           <Input value={item.descricao} onChange={(e) => updateItemField(index, 'descricao', e.target.value)} disabled={!isEditing} />
                         </div>
