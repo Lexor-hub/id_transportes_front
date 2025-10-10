@@ -1,7 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
@@ -120,6 +120,25 @@ interface StructuredInvoiceData {
   document_ai_confidence: number | null;
   document_ai_entities: Array<Record<string, unknown>>;
 }
+
+type CameraPermissionState = 'unknown' | 'granted' | 'denied';
+
+const CAMERA_PERMISSION_STORAGE_KEY = 'delivery_camera_permission';
+
+const readInitialCameraPermission = (): CameraPermissionState => {
+  if (typeof window === 'undefined') {
+    return 'unknown';
+  }
+  try {
+    const stored = window.localStorage.getItem(CAMERA_PERMISSION_STORAGE_KEY);
+    if (stored === 'granted' || stored === 'denied') {
+      return stored;
+    }
+  } catch (error) {
+    console.warn('[DeliveryUpload] Não foi possível ler a permissão da câmera armazenada:', error);
+  }
+  return 'unknown';
+};
 
 interface DeliveryUploadInitialData {
   summary?: Partial<DeliverySummary>;
@@ -459,6 +478,10 @@ export const DeliveryUpload: React.FC<DeliveryUploadProps> = ({
   const [uploadedFile, setUploadedFile] = useState<File | null>(null);
   const [drivers, setDrivers] = useState<Driver[]>([]);
   const [selectedDriverUserId, setSelectedDriverUserId] = useState<string | undefined>(undefined);
+  const [cameraPermissionState, setCameraPermissionState] = useState<CameraPermissionState>(readInitialCameraPermission);
+  const hasCameraConsent = cameraPermissionState === 'granted';
+  const [showCameraPermissionDialog, setShowCameraPermissionDialog] = useState(false);
+  const [cameraPermissionLoading, setCameraPermissionLoading] = useState(false);
 
   useEffect(() => {
     // Busca a lista de motoristas se a seleï¿½ï¿½o for permitida e o modal estiver aberto.
@@ -496,6 +519,12 @@ export const DeliveryUpload: React.FC<DeliveryUploadProps> = ({
   useEffect(() => {
     if (!open) {
       resetForm();
+    }
+  }, [open]);
+
+  useEffect(() => {
+    if (open) {
+      setCameraPermissionState(readInitialCameraPermission());
     }
   }, [open]);
 
@@ -802,6 +831,9 @@ const handleDocumentAIData = (input: DocumentAIParsedPayload) => {
   const handleCameraCapture = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
+    if (isMobileDevice() && cameraPermissionState !== 'granted') {
+      persistCameraPermission('granted');
+    }
     setUploadedFile(file);
     await processDocumentWithAI(file);
   };
@@ -811,8 +843,23 @@ const handleDocumentAIData = (input: DocumentAIParsedPayload) => {
     return /Android|iPhone|iPad|iPod|Mobile|Opera Mini|IEMobile/i.test(navigator.userAgent);
   };
 
+  const persistCameraPermission = (value: CameraPermissionState) => {
+    if (typeof window !== 'undefined') {
+      try {
+        window.localStorage.setItem(CAMERA_PERMISSION_STORAGE_KEY, value);
+      } catch (error) {
+        console.warn('[DeliveryUpload] Falha ao registrar permissao da camera:', error);
+      }
+    }
+    setCameraPermissionState(value);
+  };
+
   const openCamera = async () => {
     if (isMobileDevice()) {
+      if (!hasCameraConsent) {
+        setShowCameraPermissionDialog(true);
+        return;
+      }
       cameraInputRef.current?.click();
       return;
     }
@@ -882,9 +929,47 @@ const handleDocumentAIData = (input: DocumentAIParsedPayload) => {
       cameraInputRef.current?.click();
     }
   };
-// src/components/delivery/DeliveryUpload.tsx
 
-// ... (outras funï¿½ï¿½es do seu componente)
+  const handleRequestCameraPermission = async () => {
+    setCameraPermissionLoading(true);
+    try {
+      if (!navigator?.mediaDevices?.getUserMedia) {
+        throw new Error('API de camera indisponivel neste dispositivo');
+      }
+      const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } });
+      stream.getTracks().forEach((track) => track.stop());
+      persistCameraPermission('granted');
+      setShowCameraPermissionDialog(false);
+      toast({
+        title: 'Permissao concedida',
+        description: 'Voce pode tirar fotos diretamente pelo aplicativo.',
+      });
+      setTimeout(() => cameraInputRef.current?.click(), 50);
+    } catch (error) {
+      console.error('[DeliveryUpload] Falha ao solicitar permissao da camera:', error);
+      persistCameraPermission('denied');
+      setShowCameraPermissionDialog(false);
+      toast({
+        title: 'Permissao negada',
+        description: 'Nao foi possivel acessar a camera. Selecione uma imagem da galeria.',
+        variant: 'destructive',
+      });
+      cameraInputRef.current?.click();
+    } finally {
+      setCameraPermissionLoading(false);
+    }
+  };
+
+  const handleDeclineCameraPermission = () => {
+    persistCameraPermission('denied');
+    setShowCameraPermissionDialog(false);
+    toast({
+      title: 'Permissao da camera nao concedida',
+      description: 'Voce ainda pode anexar fotos selecionando arquivos da galeria.',
+    });
+    cameraInputRef.current?.click();
+  };
+
 
 const handleSaveDelivery = async () => {
   try {
@@ -1043,6 +1128,38 @@ const handleSaveDelivery = async () => {
               onChange={handleCameraCapture}
               style={{ position: 'absolute', left: '-9999px', width: 1, height: 1, opacity: 0 }}
             />
+
+            <Dialog open={showCameraPermissionDialog} onOpenChange={setShowCameraPermissionDialog}>
+              <DialogContent className="sm:max-w-md">
+                <DialogHeader>
+                  <DialogTitle>Permitir acesso a camera</DialogTitle>
+                  <DialogDescription>
+                    Precisamos da sua autorizacao para abrir a camera do dispositivo e registrar o canhoto.
+                  </DialogDescription>
+                </DialogHeader>
+                <div className="space-y-3 text-sm text-muted-foreground">
+                  <p>Ao prosseguir você poderá tirar fotos diretamente pelo aplicativo.</p>
+                  {cameraPermissionState === 'denied' && (
+                    <p className="text-xs text-destructive">
+                      O navegador registrou a permissão como negada. Se o problema persistir, habilite a camera nas
+                      configurações do dispositivo ou do navegador.
+                    </p>
+                  )}
+                </div>
+                <DialogFooter className="grid w-full grid-cols-1 gap-2 sm:flex sm:justify-end">
+                  <Button
+                    variant="outline"
+                    onClick={handleDeclineCameraPermission}
+                    disabled={cameraPermissionLoading}
+                  >
+                    Cancelar
+                  </Button>
+                  <Button onClick={handleRequestCameraPermission} disabled={cameraPermissionLoading}>
+                    {cameraPermissionLoading ? 'Solicitando...' : 'Permitir acesso'}
+                  </Button>
+                </DialogFooter>
+              </DialogContent>
+            </Dialog>
 
             {loading && (
               <div className="text-center">
