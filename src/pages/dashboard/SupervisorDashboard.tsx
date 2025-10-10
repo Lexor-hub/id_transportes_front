@@ -932,15 +932,30 @@ export const SupervisorDashboard = () => {
           {/* Image preview modal */}
           {previewUrl && (
             <Dialog open={true} onOpenChange={() => setPreviewUrl(null)}>
-              <DialogContent className="sm:max-w-3xl">
-                <DialogHeader>
-                  <DialogTitle>Visualizar Canhoto</DialogTitle>
+              <DialogContent className="w-full max-w-[92vw] sm:max-w-3xl p-4 sm:p-6">
+                <DialogHeader className="space-y-1">
+                  <DialogTitle className="text-lg sm:text-xl">Visualizar Canhoto</DialogTitle>
+                  <DialogDescription className="text-xs sm:text-sm">
+                    Ajuste com gesto de pinça ou rolagem para inspecionar os detalhes.
+                  </DialogDescription>
                 </DialogHeader>
                 <div className="flex items-center justify-center">
-                  <img src={previewUrl} alt="Canhoto" className="max-h-[70vh] object-contain" />
+                  <ScrollArea className="max-h-[70vh] w-full">
+                    <img
+                      src={previewUrl}
+                      alt="Canhoto"
+                      className="max-h-[68vh] w-full max-w-full object-contain rounded-md shadow-sm"
+                    />
+                  </ScrollArea>
                 </div>
-                <DialogFooter>
-                  <Button variant="secondary" onClick={() => setPreviewUrl(null)}>Fechar</Button>
+                <DialogFooter className="sm:flex sm:justify-end">
+                  <Button
+                    className="w-full sm:w-auto"
+                    variant="secondary"
+                    onClick={() => setPreviewUrl(null)}
+                  >
+                    Fechar
+                  </Button>
                 </DialogFooter>
               </DialogContent>
             </Dialog>
