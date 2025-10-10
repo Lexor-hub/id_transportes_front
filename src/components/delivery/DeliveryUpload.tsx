@@ -863,12 +863,22 @@ const handleDocumentAIData = (input: DocumentAIParsedPayload) => {
 
       stream.getTracks().forEach((track) => track.stop());
     } catch (error) {
-      console.error('Erro ao acessar camera', error);
-      toast({
-        title: 'Erro na camera',
-        description: 'Nao foi possivel acessar a camera. Tente enviar a foto manualmente.',
-        variant: 'destructive'
-      });
+       // Correção: Trata erros de permissão de forma mais específica
+      if (error instanceof Error && (error.name === 'NotAllowedError' || error.name === 'PermissionDeniedError')) {
+        console.warn('Acesso à câmera negado pelo usuário ou navegador.');
+        toast({
+          title: 'Acesso à câmera negado',
+          description: 'Por favor, use a opção "Selecionar Arquivo" para enviar a foto.',
+          variant: 'default'
+        });
+      } else {
+        console.error('Erro ao acessar camera', error);
+        toast({
+          title: 'Erro na câmera',
+          description: 'Não foi possível acessar a câmera. Tente enviar a foto manualmente.',
+          variant: 'destructive'
+        });
+      }
       cameraInputRef.current?.click();
     }
   };
