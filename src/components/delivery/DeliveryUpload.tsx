@@ -22,7 +22,7 @@ import { apiService } from '@/services/api';
 import { useAuth } from '@/contexts/AuthContext';
 
 // ##########################################################################
-// ########### NOVAS INTERFACES UNIFICADAS (COPIADAS DA SUA �LTIMA MENSAGEM)
+// ########### NOVAS INTERFACES UNIFICADAS (COPIADAS DA SUA ï¿½LTIMA MENSAGEM)
 // ##########################################################################
 interface DeliverySummary {
   nfNumber: string;
@@ -157,7 +157,7 @@ interface DeliveryUploadProps {
   onOpenChange: (open: boolean) => void;
   onSuccess?: () => void;
   initialData?: DeliveryUploadInitialData;
-  // Propriedade adicionada para controlar a exibi��o do seletor de motorista.
+  // Propriedade adicionada para controlar a exibiï¿½ï¿½o do seletor de motorista.
   allowDriverSelection?: boolean;
 }
 
@@ -176,7 +176,7 @@ type DocumentAIParsedPayload = {
   detail?: DocumentAIParsedPayload;
 };
 
-// ## Fun��es Auxiliares
+// ## Funï¿½ï¿½es Auxiliares
 const createEmptyStructuredData = (): StructuredInvoiceData => ({
   nf_data: {
     numero: '',
@@ -402,7 +402,7 @@ const calculateDueDate = (issueDate: string): string => {
   return d.toISOString().split('T')[0];
 };
 
-// Fun��o unificada para construir o estado inicial
+// Funï¿½ï¿½o unificada para construir o estado inicial
 const buildInitialState = (initialData?: DeliveryUploadInitialData): StructuredInvoiceData => {
   const base = createEmptyStructuredData();
 
@@ -421,7 +421,7 @@ const buildInitialState = (initialData?: DeliveryUploadInitialData): StructuredI
     base.volumes.quantidade = initialData.summary.volume || base.volumes.quantidade;
     base.volumes.peso_bruto = initialData.summary.weight || base.volumes.peso_bruto;
     base.nf_data.data_emissao = initialData.summary.issueDate || base.nf_data.data_emissao;
-    // O dueDate � calculado ou preenchido pelo Document AI, n�o � um campo direto na NF_Data
+    // O dueDate ï¿½ calculado ou preenchido pelo Document AI, nï¿½o ï¿½ um campo direto na NF_Data
   }
 
   // Mapeamento de campos soltos para a nova estrutura
@@ -442,7 +442,7 @@ export const DeliveryUpload: React.FC<DeliveryUploadProps> = ({
   onOpenChange,
   onSuccess,
   initialData,
-  allowDriverSelection = false // Valor padr�o � false
+  allowDriverSelection = false // Valor padrï¿½o ï¿½ false
 }) => {
   const { toast } = useToast();
   const fileInputRef = useRef<HTMLInputElement | null>(null);
@@ -461,7 +461,7 @@ export const DeliveryUpload: React.FC<DeliveryUploadProps> = ({
   const [selectedDriverUserId, setSelectedDriverUserId] = useState<string | undefined>(undefined);
 
   useEffect(() => {
-    // Busca a lista de motoristas se a sele��o for permitida e o modal estiver aberto.
+    // Busca a lista de motoristas se a seleï¿½ï¿½o for permitida e o modal estiver aberto.
     if (allowDriverSelection && open) {
       const fetchDrivers = async () => {
         try {
@@ -583,11 +583,11 @@ export const DeliveryUpload: React.FC<DeliveryUploadProps> = ({
   };
 
   // ##########################################################################
-// ########### NOVAS FUN��ES DE EXTRA��O DE TEXTO BRUTO
+// ########### NOVAS FUNï¿½ï¿½ES DE EXTRAï¿½ï¿½O DE TEXTO BRUTO
 // ##########################################################################
 
-// Fun��o auxiliar para extrair dados do texto bruto usando regex
-// Adicione esta nova fun��o auxiliar ao seu componente
+// Funï¿½ï¿½o auxiliar para extrair dados do texto bruto usando regex
+// Adicione esta nova funï¿½ï¿½o auxiliar ao seu componente
 const extractFieldsFromRawText = (text: string): Record<string, string> => {
   if (!text) return {};
   const extracted: Record<string, string> = {};
@@ -599,36 +599,36 @@ const extractFieldsFromRawText = (text: string): Record<string, string> => {
     return match && match[1] ? clean(match[1]) : '';
   };
 
-  // Mapeamento corrigido com base nos r�tulos fornecidos
-  extracted.nf_numero = find(/N[r�o]\.?\s*[:\-\s]*(\d+)/i);
-  extracted.nf_serie = find(/S[e�]rie[:\-\s]*(\d+)/i);
+  // Mapeamento corrigido com base nos rï¿½tulos fornecidos
+  extracted.nf_numero = find(/N[rï¿½o]\.?\s*[:\-\s]*(\d+)/i);
+  extracted.nf_serie = find(/S[eï¿½]rie[:\-\s]*(\d+)/i);
   extracted.chave_acesso = find(/Chave de Acesso\s*([\d\s]{44})/i);
-  extracted.data_emissao = find(/Data de Emiss[�a]o\s*(\d{2}\/\d{2}\/\d{4})/i);
-  extracted.data_saida = find(/Dt\. Sa[�i]da\/Entrada\s*(\d{2}\/\d{2}\/\d{4})/i);
-  extracted.protocolo_autorizacao = find(/Protocolo de autoriza[�c][�a]o de uso\s*(\d+)/i);
+  extracted.data_emissao = find(/Data de Emiss[ï¿½a]o\s*(\d{2}\/\d{2}\/\d{4})/i);
+  extracted.data_saida = find(/Dt\. Sa[ï¿½i]da\/Entrada\s*(\d{2}\/\d{2}\/\d{4})/i);
+  extracted.protocolo_autorizacao = find(/Protocolo de autoriza[ï¿½c][ï¿½a]o de uso\s*(\d+)/i);
   
   // Remetente
-  extracted.remetente_razao_social = find(/Raz[�a]o Social\s*([^\n\r]+)/i);
+  extracted.remetente_razao_social = find(/Raz[ï¿½a]o Social\s*([^\n\r]+)/i);
   extracted.remetente_cnpj = digits(find(/CNPJ\s*([\d.\-/\s]{14,})/i));
-  extracted.remetente_endereco = find(/Remetente\s*Endere[�c]o\s*([^\n\r]+)/i);
-  extracted.remetente_municipio = find(/Remetente\s*Munic[�i]pio\s*([^\n\r]+)/i);
+  extracted.remetente_endereco = find(/Remetente\s*Endere[ï¿½c]o\s*([^\n\r]+)/i);
+  extracted.remetente_municipio = find(/Remetente\s*Munic[ï¿½i]pio\s*([^\n\r]+)/i);
   extracted.remetente_uf = find(/Remetente\s*UF\s*([A-Z]{2})/i);
   extracted.remetente_cep = find(/Remetente\s*CEP\s*([\d]{5}\-?[\d]{3})/i);
   extracted.remetente_telefone = find(/Remetente\s*Fone[:\-\s]*([\d\s\-\(\)]+)/i);
 
-  // Destinat�rio
-  extracted.destinatario_razao_social = find(/Destinat[�a]rio \/ Remetente\s*Nome \/ Raz[�a]o Social\s*([^\n\r]+)/i);
-  extracted.destinatario_cnpj = digits(find(/Destinat[�a]rio \/ Remetente\s*CNPJ\/CPF\s*([\d.\-/\s]{14,})/i));
-  extracted.destinatario_endereco = find(/Destinat[�a]rio \/ Remetente\s*Endere[�c]o\s*([^\n\r]+)/i);
-  extracted.destinatario_municipio = find(/Destinat[�a]rio \/ Remetente\s*Munic[�i]pio\s*([^\n\r]+)/i);
-  extracted.destinatario_uf = find(/Destinat[�a]rio \/ Remetente\s*UF\s*([A-Z]{2})/i);
-  extracted.destinatario_cep = find(/Destinat[�a]rio \/ Remetente\s*CEP\s*([\d]{5}\-?[\d]{3})/i);
-  extracted.destinatario_telefone = find(/Destinat[�a]rio \/ Remetente\s*Fone\/Fax\s*([\d\s\-\(\)]+)/i);
+  // Destinatï¿½rio
+  extracted.destinatario_razao_social = find(/Destinat[ï¿½a]rio \/ Remetente\s*Nome \/ Raz[ï¿½a]o Social\s*([^\n\r]+)/i);
+  extracted.destinatario_cnpj = digits(find(/Destinat[ï¿½a]rio \/ Remetente\s*CNPJ\/CPF\s*([\d.\-/\s]{14,})/i));
+  extracted.destinatario_endereco = find(/Destinat[ï¿½a]rio \/ Remetente\s*Endere[ï¿½c]o\s*([^\n\r]+)/i);
+  extracted.destinatario_municipio = find(/Destinat[ï¿½a]rio \/ Remetente\s*Munic[ï¿½i]pio\s*([^\n\r]+)/i);
+  extracted.destinatario_uf = find(/Destinat[ï¿½a]rio \/ Remetente\s*UF\s*([A-Z]{2})/i);
+  extracted.destinatario_cep = find(/Destinat[ï¿½a]rio \/ Remetente\s*CEP\s*([\d]{5}\-?[\d]{3})/i);
+  extracted.destinatario_telefone = find(/Destinat[ï¿½a]rio \/ Remetente\s*Fone\/Fax\s*([\d\s\-\(\)]+)/i);
   
   extracted.total_nota = find(/Valor Total da Nota\s*([\d.,]+)/i);
   extracted.valor_frete = find(/Valor do Frete\s*([\d.,]+)/i);
   extracted.peso_bruto = find(/Peso Bruto\s*([\d.,]+)/i);
-  extracted.peso_liquido = find(/Peso L�quido\s*([\d.,]+)/i);
+  extracted.peso_liquido = find(/Peso Lï¿½quido\s*([\d.,]+)/i);
   extracted.volumes_quantidade = find(/Quantidade de Volume\(s\)\s*([\d\.,]+)/i);
 
   return extracted;
@@ -641,9 +641,9 @@ const handleDocumentAIData = (input: DocumentAIParsedPayload) => {
   const rawFields = (detail.rawFields ?? input.rawFields ?? {}) as Record<string, string[]>;
   const confidence = typeof detail.confidence === 'number' ? detail.confidence : (typeof input.confidence === 'number' ? input.confidence : null);
 
-  console.log('Texto extraído do PDF:', rawText);
+  console.log('Texto extraÃ­do do PDF:', rawText);
   if (rawFields && Object.keys(rawFields).length) {
-    console.log('Rótulos Document AI recebidos:', rawFields);
+    console.log('RÃ³tulos Document AI recebidos:', rawFields);
   }
   
   const rawTextData = extractFieldsFromRawText(rawText);
@@ -701,7 +701,7 @@ const handleDocumentAIData = (input: DocumentAIParsedPayload) => {
 
   toast({
     title: 'Dados recebidos do Document AI',
-    description: 'Os dados foram preenchidos automaticamente. Verifique e ajuste se necessário.'
+    description: 'Os dados foram preenchidos automaticamente. Verifique e ajuste se necessÃ¡rio.'
   });
 };
 
@@ -723,26 +723,26 @@ const handleDocumentAIData = (input: DocumentAIParsedPayload) => {
 
         toast({
           title: 'Documento processado com sucesso',
-          description: 'Os dados foram extraídos automaticamente. Verifique e ajuste se necessário.'
+          description: 'Os dados foram extraÃ­dos automaticamente. Verifique e ajuste se necessÃ¡rio.'
         });
       } else {
         setIsSefazValid(false);
         toast({
           title: 'Erro ao processar documento',
-          description: response.error || 'Não foi possível processar o documento.',
+          
           variant: 'destructive'
         });
-        setStep('form'); // Mantenha no formulário para preenchimento manual
+        setStep('form'); // Mantenha no formulÃ¡rio para preenchimento manual
       }
     } catch (error) {
       setIsSefazValid(false);
       console.error('Erro ao processar documento com Document AI:', error);
       toast({
         title: 'Erro ao processar documento',
-        description: 'Ocorreu um erro ao enviar o documento para análise.',
+        description: 'Ocorreu um erro ao enviar o documento para anÃ¡lise.',
         variant: 'destructive'
       });
-      setStep('form'); // Mantenha no formulário para preenchimento manual
+      setStep('form'); // Mantenha no formulÃ¡rio para preenchimento manual
     } finally {
       setLoading(false);
     }
@@ -760,8 +760,8 @@ const handleDocumentAIData = (input: DocumentAIParsedPayload) => {
     const isSefaz = sefazIndicators.some((indicator) => textContent.includes(indicator));
     if (!isSefaz) {
       toast({
-        title: 'Documento inválido',
-        description: 'O arquivo XML não parece ser um documento SEFAZ válido',
+        title: 'Documento invÃ¡lido',
+        description: 'O arquivo XML nÃ£o parece ser um documento SEFAZ vÃ¡lido',
         variant: 'destructive'
       });
       return false;
@@ -777,7 +777,7 @@ const handleDocumentAIData = (input: DocumentAIParsedPayload) => {
   const fileExtension = file.name.toLowerCase().substring(file.name.lastIndexOf('.'));
   if (!ALLOWED_FILE_EXTENSIONS.includes(fileExtension)) {
     toast({
-      title: 'Arquivo não suportado',
+      title: 'Arquivo nÃ£o suportado',
       description: 'Envie um XML, PDF ou imagem (JPG, PNG, WEBP, HEIC).',
       variant: 'destructive'
     });
@@ -806,16 +806,27 @@ const handleDocumentAIData = (input: DocumentAIParsedPayload) => {
     await processDocumentWithAI(file);
   };
 
+  const isMobileDevice = () => {
+    if (typeof navigator === 'undefined') return false;
+    return /Android|iPhone|iPad|iPod|Mobile|Opera Mini|IEMobile/i.test(navigator.userAgent);
+  };
+
   const openCamera = async () => {
+    if (isMobileDevice()) {
+      cameraInputRef.current?.click();
+      return;
+    }
+
     if (typeof navigator === 'undefined' || !navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
       toast({
         title: 'Camera indisponivel',
-        description: 'Não foi possivel acessar a camera automaticamente. Selecione a foto manualmente.',
+        description: 'Nao foi possivel acessar a camera automaticamente. Selecione a foto manualmente.',
         variant: 'destructive'
       });
       cameraInputRef.current?.click();
       return;
     }
+
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } });
       const video = document.createElement('video');
@@ -824,7 +835,10 @@ const handleDocumentAIData = (input: DocumentAIParsedPayload) => {
       await video.play();
 
       await new Promise<void>((resolve) => {
-        if (video.readyState >= 2) return resolve();
+        if (video.readyState >= 2) {
+          resolve();
+          return;
+        }
         const onCanPlay = () => {
           video.removeEventListener('canplay', onCanPlay);
           resolve();
@@ -836,7 +850,9 @@ const handleDocumentAIData = (input: DocumentAIParsedPayload) => {
       canvas.width = video.videoWidth || 1280;
       canvas.height = video.videoHeight || 720;
       const ctx = canvas.getContext('2d');
-      if (ctx) ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+      if (ctx) {
+        ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+      }
 
       const blob = await new Promise<Blob | null>((resolve) => canvas.toBlob(resolve, 'image/jpeg', 0.8));
       if (blob) {
@@ -844,32 +860,31 @@ const handleDocumentAIData = (input: DocumentAIParsedPayload) => {
         setUploadedFile(file);
         await processDocumentWithAI(file);
       }
+
       stream.getTracks().forEach((track) => track.stop());
     } catch (error) {
-      console.error('Erro ao acessar câmera', error);
+      console.error('Erro ao acessar camera', error);
       toast({
-        title: 'Erro na câmera',
-        description: 'Não foi possível acessar a câmera. Tente enviar a foto manualmente.',
+        title: 'Erro na camera',
+        description: 'Nao foi possivel acessar a camera. Tente enviar a foto manualmente.',
         variant: 'destructive'
       });
       cameraInputRef.current?.click();
     }
   };
-
-
 // src/components/delivery/DeliveryUpload.tsx
 
-// ... (outras fun��es do seu componente)
+// ... (outras funï¿½ï¿½es do seu componente)
 
 const handleSaveDelivery = async () => {
   try {
     setLoading(true);
 
-    // Valida��o no frontend antes de enviar
+    // Validaï¿½ï¿½o no frontend antes de enviar
     if (!structuredData.nf_data.numero || !structuredData.destinatario.razao_social || !structuredData.destinatario.endereco) {
         toast({
-            title: 'Campos obrigatórios',
-            description: 'Preencha Número da NF, Nome do Cliente e Endereço.',
+            title: 'Campos obrigatÃ³rios',
+            description: 'Preencha NÃºmero da NF, Nome do Cliente e EndereÃ§o.',
             variant: 'destructive'
         });
         setLoading(false);
@@ -883,12 +898,12 @@ const handleSaveDelivery = async () => {
       : (user?.user_type === 'DRIVER' || user?.user_type === 'MOTORISTA' ? fallbackDriverUserId : undefined);
 
     if (allowDriverSelection && !driverIdForPayload) {
-      toast({ title: 'Motorista não selecionado', description: 'Por favor, atribua a entrega a um motorista.', variant: 'destructive' });
+      toast({ title: 'Motorista nÃ£o selecionado', description: 'Por favor, atribua a entrega a um motorista.', variant: 'destructive' });
       setLoading(false);
       return;
     };
 
-    // CORRE��O: O `summaryPayload` foi adicionado para corresponder � estrutura esperada pelo backend.
+    // CORREï¿½ï¿½O: O `summaryPayload` foi adicionado para corresponder ï¿½ estrutura esperada pelo backend.
     const summaryPayload = {
         nf_number: structuredData.nf_data.numero,
         client_name: structuredData.destinatario.razao_social,
@@ -901,7 +916,7 @@ const handleSaveDelivery = async () => {
     // Garante que um arquivo foi selecionado antes do envio
     if (!uploadedFile) {
       toast({
-        title: 'Documento obrigatório',
+        title: 'Documento obrigatÃ³rio',
         description: 'Selecione um XML ou PDF da NF antes de salvar a entrega.',
         variant: 'destructive'
       });
@@ -920,7 +935,7 @@ const handleSaveDelivery = async () => {
 
     console.log("Payload a ser enviado para a API:", payload);
     
-    const response = await apiService.createDelivery(payload); // O m�todo correto � `createDelivery`
+    const response = await apiService.createDelivery(payload); // O mï¿½todo correto ï¿½ `createDelivery`
     if (response.success) {
       toast({
         title: 'Entrega cadastrada!',
@@ -929,14 +944,12 @@ const handleSaveDelivery = async () => {
       resetForm();
       onOpenChange(false);
       onSuccess?.();
-    } else {
-      throw new Error(response?.error || 'Erro ao salvar entrega');
     }
   } catch (error) {
     console.error('Erro ao salvar entrega', error);
     toast({
       title: 'Erro ao salvar',
-      description: (error as Error).message || 'Não foi possível salvar a entrega. Tente novamente.',
+      description: (error as Error).message || 'NÃo foi possí­vel salvar a entrega. Tente novamente.',
       variant: 'destructive'
     });
   } finally {
@@ -983,7 +996,7 @@ const handleSaveDelivery = async () => {
                   <div className="text-center">
                     <h3 className="font-semibold">Selecionar Arquivo</h3>
                     <p className="text-sm text-muted-foreground mt-1">
-                      XML, PDF ou Foto (extração automática)
+                      XML, PDF ou Foto (extraÃ§Ã£o automÃ¡tica)
                     </p>
                   </div>
                 </CardContent>
@@ -997,7 +1010,7 @@ const handleSaveDelivery = async () => {
                   <div className="text-center">
                     <h3 className="font-semibold">Tirar Foto</h3>
                     <p className="text-sm text-muted-foreground mt-1">
-                      Fotografar documento (OCR automático)
+                      Fotografar documento (OCR automÃ¡tico)
                     </p>
                   </div>
                 </CardContent>
@@ -1035,12 +1048,12 @@ const handleSaveDelivery = async () => {
               {isSefazValid ? (
                 <>
                   <CheckCircle className="h-5 w-5 text-green-600" />
-                  <span className="text-sm font-medium">Documento SEFAZ válido - Dados extraídos automaticamente</span>
+                  <span className="text-sm font-medium">Documento SEFAZ vÃ¡lido - Dados extraÃ­dos automaticamente</span>
                 </>
               ) : (
                 <>
                   <AlertTriangle className="h-5 w-5 text-yellow-600" />
-                  <span className="text-sm font-medium">Preenchimento manual necessário</span>
+                  <span className="text-sm font-medium">Preenchimento manual necessÃ¡rio</span>
                 </>
               )}
               <Button variant="ghost" size="sm" onClick={() => setIsEditing(!isEditing)} className="ml-auto">
@@ -1073,11 +1086,11 @@ const handleSaveDelivery = async () => {
               <h3 className="text-sm font-semibold text-muted-foreground">Dados da Nota Fiscal</h3>
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 <div className="space-y-2">
-                  <Label>Número</Label>
+                  <Label>NÃºmero</Label>
                   <Input value={structuredData.nf_data.numero} onChange={(e) => updateStructuredField('nf_data', 'numero', e.target.value)} disabled={!isEditing} />
                 </div>
                 <div className="space-y-2">
-                  <Label>Série</Label>
+                  <Label>SÃ©rie</Label>
                   <Input value={structuredData.nf_data.serie} onChange={(e) => updateStructuredField('nf_data', 'serie', e.target.value)} disabled={!isEditing} />
                 </div>
                 <div className="space-y-2 md:col-span-1">
@@ -1085,15 +1098,15 @@ const handleSaveDelivery = async () => {
                   <Input value={structuredData.nf_data.chave} onChange={(e) => updateStructuredField('nf_data', 'chave', e.target.value)} disabled={!isEditing} />
                 </div>
                 <div className="space-y-2">
-                  <Label>Data de Emissão</Label>
+                  <Label>Data de EmissÃ£o</Label>
                   <Input type="date" value={structuredData.nf_data.data_emissao} onChange={(e) => updateStructuredField('nf_data', 'data_emissao', e.target.value)} disabled={!isEditing} />
                 </div>
                 <div className="space-y-2">
-                  <Label>Data de Saída</Label>
+                  <Label>Data de SaÃ­da</Label>
                   <Input type="date" value={structuredData.nf_data.data_saida} onChange={(e) => updateStructuredField('nf_data', 'data_saida', e.target.value)} disabled={!isEditing} />
                 </div>
                 <div className="space-y-2">
-                  <Label>Protocolo de Autorização</Label>
+                  <Label>Protocolo de AutorizaÃ§Ã£o</Label>
                   <Input value={structuredData.nf_data.protocolo_autorizacao} onChange={(e) => updateStructuredField('nf_data', 'protocolo_autorizacao', e.target.value)} disabled={!isEditing} />
                 </div>
               </div>
@@ -1103,7 +1116,7 @@ const handleSaveDelivery = async () => {
               <h3 className="text-sm font-semibold text-muted-foreground">Remetente</h3>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div className="space-y-2">
-                  <Label>Razão Social</Label>
+                  <Label>RazÃ£o Social</Label>
                   <Input value={structuredData.remetente.razao_social} onChange={(e) => updateStructuredField('remetente', 'razao_social', e.target.value)} disabled={!isEditing} />
                 </div>
                 <div className="space-y-2">
@@ -1111,11 +1124,11 @@ const handleSaveDelivery = async () => {
                   <Input value={structuredData.remetente.cnpj_cpf} onChange={(e) => updateStructuredField('remetente', 'cnpj_cpf', e.target.value)} disabled={!isEditing} />
                 </div>
                 <div className="space-y-2 md:col-span-2">
-                  <Label>Endereço</Label>
+                  <Label>EndereÃ§o</Label>
                   <Input value={structuredData.remetente.endereco} onChange={(e) => updateStructuredField('remetente', 'endereco', e.target.value)} disabled={!isEditing} />
                 </div>
                 <div className="space-y-2">
-                  <Label>Município</Label>
+                  <Label>MunicÃ­pio</Label>
                   <Input value={structuredData.remetente.municipio} onChange={(e) => updateStructuredField('remetente', 'municipio', e.target.value)} disabled={!isEditing} />
                 </div>
                 <div className="space-y-2">
@@ -1131,17 +1144,17 @@ const handleSaveDelivery = async () => {
                   <Input value={structuredData.remetente.telefone} onChange={(e) => updateStructuredField('remetente', 'telefone', e.target.value)} disabled={!isEditing} />
                 </div>
                 <div className="space-y-2">
-                  <Label>Inscrição Estadual</Label>
+                  <Label>InscriÃ§Ã£o Estadual</Label>
                   <Input value={structuredData.remetente.inscricao_estadual} onChange={(e) => updateStructuredField('remetente', 'inscricao_estadual', e.target.value)} disabled={!isEditing} />
                 </div>
               </div>
             </div>
 
             <div className="space-y-4">
-              <h3 className="text-sm font-semibold text-muted-foreground">Destinatário</h3>
+              <h3 className="text-sm font-semibold text-muted-foreground">DestinatÃ¡rio</h3>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div className="space-y-2">
-                  <Label>Razão Social</Label>
+                  <Label>RazÃ£o Social</Label>
                   <Input value={structuredData.destinatario.razao_social} onChange={(e) => updateStructuredField('destinatario', 'razao_social', e.target.value)} disabled={!isEditing} />
                 </div>
                 <div className="space-y-2">
@@ -1149,11 +1162,11 @@ const handleSaveDelivery = async () => {
                   <Input value={structuredData.destinatario.cnpj_cpf} onChange={(e) => updateStructuredField('destinatario', 'cnpj_cpf', e.target.value)} disabled={!isEditing} />
                 </div>
                 <div className="space-y-2 md:col-span-2">
-                  <Label>Endereço</Label>
+                  <Label>EndereÃ§o</Label>
                   <Input value={structuredData.destinatario.endereco} onChange={(e) => updateStructuredField('destinatario', 'endereco', e.target.value)} disabled={!isEditing} />
                 </div>
                 <div className="space-y-2">
-                  <Label>Município</Label>
+                  <Label>MunicÃ­pio</Label>
                   <Input value={structuredData.destinatario.municipio} onChange={(e) => updateStructuredField('destinatario', 'municipio', e.target.value)} disabled={!isEditing} />
                 </div>
                 <div className="space-y-2">
@@ -1169,7 +1182,7 @@ const handleSaveDelivery = async () => {
                   <Input value={structuredData.destinatario.telefone} onChange={(e) => updateStructuredField('destinatario', 'telefone', e.target.value)} disabled={!isEditing} />
                 </div>
                 <div className="space-y-2">
-                  <Label>Inscrição Estadual</Label>
+                  <Label>InscriÃ§Ã£o Estadual</Label>
                   <Input value={structuredData.destinatario.inscricao_estadual} onChange={(e) => updateStructuredField('destinatario', 'inscricao_estadual', e.target.value)} disabled={!isEditing} />
                 </div>
               </div>
@@ -1221,7 +1234,7 @@ const handleSaveDelivery = async () => {
               <h3 className="text-sm font-semibold text-muted-foreground">Transportadora</h3>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div className="space-y-2">
-                  <Label>Razão Social</Label>
+                  <Label>RazÃ£o Social</Label>
                   <Input value={structuredData.transportadora.razao_social} onChange={(e) => updateStructuredField('transportadora', 'razao_social', e.target.value)} disabled={!isEditing} />
                 </div>
                 <div className="space-y-2">
@@ -1229,11 +1242,11 @@ const handleSaveDelivery = async () => {
                   <Input value={structuredData.transportadora.cnpj_cpf} onChange={(e) => updateStructuredField('transportadora', 'cnpj_cpf', e.target.value)} disabled={!isEditing} />
                 </div>
                 <div className="space-y-2 md:col-span-2">
-                  <Label>Endereço</Label>
+                  <Label>EndereÃ§o</Label>
                   <Input value={structuredData.transportadora.endereco} onChange={(e) => updateStructuredField('transportadora', 'endereco', e.target.value)} disabled={!isEditing} />
                 </div>
                 <div className="space-y-2">
-                  <Label>Município</Label>
+                  <Label>MunicÃ­pio</Label>
                   <Input value={structuredData.transportadora.municipio} onChange={(e) => updateStructuredField('transportadora', 'municipio', e.target.value)} disabled={!isEditing} />
                 </div>
                 <div className="space-y-2">
@@ -1255,7 +1268,7 @@ const handleSaveDelivery = async () => {
                   <Input value={structuredData.volumes.quantidade} onChange={(e) => updateStructuredField('volumes', 'quantidade', e.target.value)} disabled={!isEditing} />
                 </div>
                 <div className="space-y-2">
-                  <Label>Espécie</Label>
+                  <Label>EspÃ©cie</Label>
                   <Input value={structuredData.volumes.especie} onChange={(e) => updateStructuredField('volumes', 'especie', e.target.value)} disabled={!isEditing} />
                 </div>
                 <div className="space-y-2">
@@ -1263,7 +1276,7 @@ const handleSaveDelivery = async () => {
                   <Input value={structuredData.volumes.marca} onChange={(e) => updateStructuredField('volumes', 'marca', e.target.value)} disabled={!isEditing} />
                 </div>
                 <div className="space-y-2">
-                  <Label>Número</Label>
+                  <Label>NÃºmero</Label>
                   <Input value={structuredData.volumes.numero} onChange={(e) => updateStructuredField('volumes', 'numero', e.target.value)} disabled={!isEditing} />
                 </div>
                 <div className="space-y-2">
@@ -1271,7 +1284,7 @@ const handleSaveDelivery = async () => {
                   <Input value={structuredData.volumes.peso_bruto} onChange={(e) => updateStructuredField('volumes', 'peso_bruto', e.target.value)} disabled={!isEditing} />
                 </div>
                 <div className="space-y-2">
-                  <Label>Peso Líquido</Label>
+                  <Label>Peso LÃ­quido</Label>
                   <Input value={structuredData.volumes.peso_liquido} onChange={(e) => updateStructuredField('volumes', 'peso_liquido', e.target.value)} disabled={!isEditing} />
                 </div>
               </div>
@@ -1281,7 +1294,7 @@ const handleSaveDelivery = async () => {
               <h3 className="text-sm font-semibold text-muted-foreground">Impostos</h3>
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 <div className="space-y-2">
-                  <Label>Base de Cálculo ICMS</Label>
+                  <Label>Base de CÃ¡lculo ICMS</Label>
                   <Input value={structuredData.impostos.base_calculo_icms} onChange={(e) => updateStructuredField('impostos', 'base_calculo_icms', e.target.value)} disabled={!isEditing} />
                 </div>
                 <div className="space-y-2">
@@ -1358,11 +1371,11 @@ const handleSaveDelivery = async () => {
                     <div key={index} className="border rounded-md p-3 space-y-3">
                       <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
                         <div className="space-y-2">
-                          <Label>Código</Label>
+                          <Label>CÃ³digo</Label>
                           <Input value={item.codigo_prod} onChange={(e) => updateItemField(index, 'codigo_prod', e.target.value)} disabled={!isEditing} />
                         </div>
                         <div className="space-y-2 md:col-span-2">
-                          <Label>Descrição</Label>
+                          <Label>DescriÃ§Ã£o</Label>
                           <Input value={item.descricao} onChange={(e) => updateItemField(index, 'descricao', e.target.value)} disabled={!isEditing} />
                         </div>
                         <div className="space-y-2">
@@ -1374,7 +1387,7 @@ const handleSaveDelivery = async () => {
                           <Input value={item.unidade} onChange={(e) => updateItemField(index, 'unidade', e.target.value)} disabled={!isEditing} />
                         </div>
                         <div className="space-y-2">
-                          <Label>Valor Unitário</Label>
+                          <Label>Valor UnitÃ¡rio</Label>
                           <Input value={item.valor_unitario} onChange={(e) => updateItemField(index, 'valor_unitario', e.target.value)} disabled={!isEditing} />
                         </div>
                         <div className="space-y-2">
@@ -1404,7 +1417,7 @@ const handleSaveDelivery = async () => {
             </div>
             
             <div className="space-y-2">
-              <Label htmlFor="infoComplementares">Informações Complementares</Label>
+              <Label htmlFor="infoComplementares">InformaÃ§Ãµes Complementares</Label>
               <Textarea
                 id="infoComplementares"
                 value={structuredData.informacoes_complementares}
@@ -1414,7 +1427,7 @@ const handleSaveDelivery = async () => {
               />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="rawText">Texto bruto extraído</Label>
+              <Label htmlFor="rawText">Texto bruto extraÃ­do</Label>
               <Textarea
                 id="rawText"
                 value={structuredData.raw_text}
