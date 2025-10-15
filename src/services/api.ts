@@ -298,6 +298,11 @@ class ApiService {
       return { success: false, error: err instanceof Error ? err.message : 'Erro interno' } as ApiResponse<any>;
     }
   }
+
+  async deleteDelivery(deliveryId: string | number) {
+    const id = encodeURIComponent(String(deliveryId));
+    return this.request<any>(`/api/deliveries/${id}`, { method: 'DELETE' });
+  }
 }
 
 export const apiService = new ApiService();

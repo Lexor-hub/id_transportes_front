@@ -13,7 +13,8 @@ import {
     AlertTriangle,
     Plus,
     Route,
-    Upload
+    Upload,
+    Trash2
 } from 'lucide-react';
 import { apiService } from '@/services/api';
 import { useAuth } from '@/contexts/AuthContext';
@@ -76,6 +77,9 @@ export const DriverDashboard = () => {
 
     const [showDeliveryUpload, setShowDeliveryUpload] = useState(false);
     const [selectedDelivery, setSelectedDelivery] = useState<Delivery | null>(null);
+    const [deliveryToDelete, setDeliveryToDelete] = useState<Delivery | null>(null);
+    const [showDeleteModal, setShowDeleteModal] = useState(false);
+    const [deletingDeliveryId, setDeletingDeliveryId] = useState<string | null>(null);
 
     const [showDetailsModal, setShowDetailsModal] = useState(false);
     const [deliveryDetails, setDeliveryDetails] = useState<any>(null); // Para guardar os dados completos
@@ -507,6 +511,11 @@ const handleDisableLocation = () => {
         }
     };
 
+    const canDeleteDelivery = useCallback((delivery: Delivery) => {
+        const normalizedStatus = (delivery.status || '').toUpperCase();
+        return !['REALIZADA', 'DELIVERED', 'COMPLETED', 'FINALIZADA'].includes(normalizedStatus);
+    }, []);
+
     // Abre o seletor de arquivo para a câmera
     const handleTakePhotoClick = (delivery: Delivery) => {
         setSelectedDelivery(delivery);
@@ -575,6 +584,46 @@ const handleDisableLocation = () => {
     const handleUploadButtonClick = (delivery: Delivery) => {
         setSelectedDelivery(delivery);
         setShowDeliveryUpload(true);
+    };
+
+    const handleRequestDeleteDelivery = (delivery: Delivery) => {
+        setDeliveryToDelete(delivery);
+        setShowDeleteModal(true);
+    };
+
+    const handleConfirmDeleteDelivery = async () => {
+        if (!deliveryToDelete) return;
+
+        try {
+            setDeletingDeliveryId(deliveryToDelete.id);
+            const response = await apiService.deleteDelivery(deliveryToDelete.id);
+            if (!response.success) {
+                throw new Error(response.error || 'Não foi possível excluir a entrega.');
+            }
+
+            toast({
+                title: 'Entrega excluída',
+                description: `A entrega NF ${deliveryToDelete.nfNumber} foi removida.`,
+            });
+
+            setDeliveries((prev) => prev.filter((d) => d.id !== deliveryToDelete.id));
+            await loadTodayDeliveries();
+        } catch (error: any) {
+            toast({
+                title: 'Erro ao excluir entrega',
+                description: error?.message || 'Não foi possível excluir a entrega. Tente novamente.',
+                variant: 'destructive',
+            });
+        } finally {
+            setDeletingDeliveryId(null);
+            setShowDeleteModal(false);
+            setDeliveryToDelete(null);
+        }
+    };
+
+    const handleCancelDeleteDelivery = () => {
+        setShowDeleteModal(false);
+        setDeliveryToDelete(null);
     };
 
     const getInitialDataForUpload = () => {
@@ -736,8 +785,11 @@ const handleDisableLocation = () => {
                     ) : (
                         <div className="space-y-4">
         
-                        {deliveries.map((delivery) => (
-                            
+                        {deliveries.map((delivery) => {
+                            const allowDeletion = canDeleteDelivery(delivery) && !delivery.hasReceipt;
+                            const isDeletingCurrent = deletingDeliveryId === delivery.id;
+
+                            return (
                             <Card key={delivery.id} className="border">
                                 <CardContent className="pt-4">
                                     
@@ -764,46 +816,57 @@ const handleDisableLocation = () => {
                                     </div>
 
                                     {/* Bloco de AÇÕES (Botões) */}
-                                    <div className="mt-4 flex gap-2 items-center justify-between">
-                                        
-                                        {/* BOTÃO VER DETALHES */}
-                                        <Button 
-                                            size="sm" 
-                                            variant="outline" 
-                                            onClick={() => handleViewDetails(delivery)} // <<-- Handler para abrir o modal
+                                    <div className="mt-4 flex flex-wrap items-center justify-between gap-2">
+                                        <Button
+                                            size="sm"
+                                            variant="outline"
+                                            onClick={() => handleViewDetails(delivery)}
                                         >
                                             Ver Detalhes
                                         </Button>
 
-                                        {/* Renderização condicional do botão Fotografar/Finalizada */}
-                                        {delivery.status !== 'REALIZADA' && !delivery.hasReceipt && (
-                                            <Button size="sm" onClick={() => handleTakePhotoClick(delivery)}>
-                                                <Camera className="mr-2 h-4 w-4" />
-                                                Fotografar Canhoto
-                                            </Button>
-                                        )}
-                                        {delivery.hasReceipt && delivery.receiptImageUrl && (
-                                            <div className="flex items-center gap-2 text-green-600">
-                                                <CheckCircle className="h-4 w-4" />
-                                                <button
-                                                    onClick={() => handleViewReceipt(delivery.receiptImageUrl!)}
-                                                    className="text-sm font-medium text-blue-600 hover:underline disabled:text-gray-400"
-                                                    disabled={receiptLoading}
+                                        <div className="flex flex-wrap items-center gap-2">
+                                            {delivery.status !== 'REALIZADA' && !delivery.hasReceipt && (
+                                                <Button size="sm" onClick={() => handleTakePhotoClick(delivery)}>
+                                                    <Camera className="mr-2 h-4 w-4" />
+                                                    Fotografar Canhoto
+                                                </Button>
+                                            )}
+                                            {delivery.hasReceipt && delivery.receiptImageUrl && (
+                                                <div className="flex items-center gap-2 text-green-600">
+                                                    <CheckCircle className="h-4 w-4" />
+                                                    <button
+                                                        onClick={() => handleViewReceipt(delivery.receiptImageUrl!)}
+                                                        className="text-sm font-medium text-blue-600 hover:underline disabled:text-gray-400"
+                                                        disabled={receiptLoading}
+                                                    >
+                                                        Ver Canhoto
+                                                    </button>
+                                                </div>
+                                            )}
+                                            {delivery.hasReceipt && !delivery.receiptImageUrl && (
+                                                <div className="flex items-center gap-2 text-green-600">
+                                                    <CheckCircle className="h-4 w-4" />
+                                                    <span className="text-sm">Entrega Finalizada</span>
+                                                </div>
+                                            )}
+                                            {allowDeletion && (
+                                                <Button
+                                                    size="sm"
+                                                    variant="destructive"
+                                                    onClick={() => handleRequestDeleteDelivery(delivery)}
+                                                    disabled={isDeletingCurrent}
                                                 >
-                                                    Ver Canhoto
-                                                </button>
-                                            </div>
-                                        )}
-                                        {delivery.hasReceipt && !delivery.receiptImageUrl && (
-                                            <div className="flex items-center gap-2 text-green-600">
-                                                <CheckCircle className="h-4 w-4" />
-                                                <span className="text-sm">Entrega Finalizada</span>
-                                            </div>
-                                        )}
+                                                    <Trash2 className="mr-2 h-4 w-4" />
+                                                    {isDeletingCurrent ? 'Removendo...' : 'Excluir'}
+                                                </Button>
+                                            )}
+                                        </div>
                                     </div>
                                 </CardContent>
                             </Card>
-                        ))}
+                        );
+                        })}
                         
                         <Dialog open={showDetailsModal} onOpenChange={setShowDetailsModal}>
                             <DialogContent className="sm:max-w-[425px] max-h-[90vh] overflow-y-auto">
@@ -967,6 +1030,31 @@ const handleDisableLocation = () => {
                 }}
                 initialData={getInitialDataForUpload()}
             />
+
+            <Dialog open={showDeleteModal} onOpenChange={(open) => { if (!open) handleCancelDeleteDelivery(); }}>
+                <DialogContent className="sm:max-w-md">
+                    <DialogHeader>
+                        <DialogTitle>Excluir entrega</DialogTitle>
+                        <DialogDescription>
+                            Tem certeza que deseja remover a entrega NF {deliveryToDelete?.nfNumber}?
+                        </DialogDescription>
+                    </DialogHeader>
+                    <div className="flex items-start gap-3 rounded-md border border-destructive/30 bg-destructive/10 p-3">
+                        <AlertTriangle className="h-5 w-5 text-destructive" />
+                        <p className="text-sm text-muted-foreground">
+                            A entrega será removida da sua lista. Essa ação não pode ser desfeita.
+                        </p>
+                    </div>
+                    <DialogFooter className="gap-2 sm:gap-0">
+                        <Button variant="outline" onClick={handleCancelDeleteDelivery} disabled={deletingDeliveryId !== null}>
+                            Cancelar
+                        </Button>
+                        <Button variant="destructive" onClick={handleConfirmDeleteDelivery} disabled={deletingDeliveryId !== null}>
+                            {deletingDeliveryId !== null ? 'Removendo...' : 'Excluir Entrega'}
+                        </Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
 
             {/* Modal para Visualizar o Canhoto */}
             <Dialog open={showReceiptModal} onOpenChange={setShowReceiptModal}>

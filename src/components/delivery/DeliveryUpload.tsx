@@ -437,6 +437,7 @@ const buildInitialState = (initialData?: DeliveryUploadInitialData): StructuredI
     base.destinatario.cnpj_cpf = initialData.summary.clientCnpj || base.destinatario.cnpj_cpf;
     base.destinatario.endereco = initialData.summary.deliveryAddress || base.destinatario.endereco;
     base.valores.valor_total_nota = initialData.summary.merchandiseValue || base.valores.valor_total_nota;
+    base.valores.valor_total_produtos = initialData.summary.merchandiseValue || base.valores.valor_total_produtos;
     base.volumes.quantidade = initialData.summary.volume || base.volumes.quantidade;
     base.volumes.peso_bruto = initialData.summary.weight || base.volumes.peso_bruto;
     base.nf_data.data_emissao = initialData.summary.issueDate || base.nf_data.data_emissao;
@@ -482,6 +483,12 @@ export const DeliveryUpload: React.FC<DeliveryUploadProps> = ({
   const hasCameraConsent = cameraPermissionState === 'granted';
   const [showCameraPermissionDialog, setShowCameraPermissionDialog] = useState(false);
   const [cameraPermissionLoading, setCameraPermissionLoading] = useState(false);
+
+  const formatDateForInput = (value: string): string => {
+    if (!value) return '';
+    const normalized = normalizeDateValue(value);
+    return /^\d{4}-\d{2}-\d{2}$/.test(normalized) ? normalized : '';
+  };
 
   useEffect(() => {
     // Busca a lista de motoristas se a seleï¿½ï¿½o for permitida e o modal estiver aberto.
@@ -975,43 +982,54 @@ const handleSaveDelivery = async () => {
   try {
     setLoading(true);
 
-    // Validaï¿½ï¿½o no frontend antes de enviar
-    if (!structuredData.nf_data.numero || !structuredData.destinatario.razao_social || !structuredData.destinatario.endereco) {
-        toast({
-            title: 'Campos obrigatÃ³rios',
-            description: 'Preencha NÃºmero da NF, Nome do Cliente e EndereÃ§o.',
-            variant: 'destructive'
-        });
-        setLoading(false);
-        return;
+    // Validação no frontend antes de enviar
+    const requiredFields = [
+      { value: structuredData.nf_data.numero, label: 'Número da NF' },
+      { value: structuredData.nf_data.chave, label: 'Chave da NF' },
+      { value: structuredData.destinatario.razao_social, label: 'Nome do Cliente' },
+      { value: structuredData.nf_data.data_emissao, label: 'Data de emissão' },
+      { value: structuredData.nf_data.data_saida, label: 'Data de saída' },
+      { value: structuredData.valores.valor_total_produtos, label: 'Valor total da entrega' },
+      { value: structuredData.valores.valor_total_nota, label: 'Valor total da nota' },
+    ];
+    const missingFields = requiredFields.filter(({ value }) => !normalizeString(value));
+    if (missingFields.length > 0) {
+      toast({
+        title: 'Campos obrigatórios',
+        description: `Preencha: ${missingFields.map(({ label }) => label).join(', ')}.`,
+        variant: 'destructive'
+      });
+      setLoading(false);
+      return;
     }
 
     // Usa driver_id do backend quando o usuario autenticado for motorista.
     const fallbackDriverUserId = user?.id ? String(user.id) : (user?.user_id ? String(user.user_id) : undefined);
-    const driverIdForPayload = allowDriverSelection 
-      ? selectedDriverUserId 
+    const driverIdForPayload = allowDriverSelection
+      ? selectedDriverUserId
       : (user?.user_type === 'DRIVER' || user?.user_type === 'MOTORISTA' ? fallbackDriverUserId : undefined);
 
     if (allowDriverSelection && !driverIdForPayload) {
-      toast({ title: 'Motorista nÃ£o selecionado', description: 'Por favor, atribua a entrega a um motorista.', variant: 'destructive' });
+      toast({ title: 'Motorista não selecionado', description: 'Por favor, atribua a entrega a um motorista.', variant: 'destructive' });
       setLoading(false);
       return;
+    }
+
+    const summaryPayload = {
+      nf_number: normalizeString(structuredData.nf_data.numero),
+      nfe_key: normalizeString(structuredData.nf_data.chave),
+      client_name: normalizeString(structuredData.destinatario.razao_social),
+      delivery_address: normalizeString(structuredData.destinatario.endereco),
+      emission_date: normalizeDateValue(structuredData.nf_data.data_emissao),
+      departure_date: normalizeDateValue(structuredData.nf_data.data_saida),
+      merchandise_value: normalizeString(structuredData.valores.valor_total_produtos),
+      invoice_total_value: normalizeString(structuredData.valores.valor_total_nota),
     };
 
-    // CORREï¿½ï¿½O: O `summaryPayload` foi adicionado para corresponder ï¿½ estrutura esperada pelo backend.
-    const summaryPayload = {
-        nf_number: structuredData.nf_data.numero,
-        client_name: structuredData.destinatario.razao_social,
-        delivery_address: structuredData.destinatario.endereco,
-        merchandise_value: structuredData.valores.valor_total_nota,
-        volume: structuredData.volumes.quantidade,
-        weight: structuredData.volumes.peso_bruto,
-    };
-    
     // Garante que um arquivo foi selecionado antes do envio
     if (!uploadedFile) {
       toast({
-        title: 'Documento obrigatÃ³rio',
+        title: 'Documento obrigatório',
         description: 'Selecione um XML ou PDF da NF antes de salvar a entrega.',
         variant: 'destructive'
       });
@@ -1019,18 +1037,17 @@ const handleSaveDelivery = async () => {
       return;
     }
 
-    // O payload completo para a API
     const payload = {
-        structured: structuredData,
-        summary: summaryPayload,
-        isSefazValid,
-        driver_id: driverIdForPayload, // Adiciona o driver_id ao payload
-        file: uploadedFile,
+      structured: structuredData,
+      summary: summaryPayload,
+      isSefazValid,
+      driver_id: driverIdForPayload,
+      file: uploadedFile,
     };
 
-    console.log("Payload a ser enviado para a API:", payload);
-    
-    const response = await apiService.createDelivery(payload); // O mï¿½todo correto ï¿½ `createDelivery`
+    console.log('Payload a ser enviado para a API:', payload);
+
+    const response = await apiService.createDelivery(payload);
     if (response.success) {
       toast({
         title: 'Entrega cadastrada!',
@@ -1044,13 +1061,14 @@ const handleSaveDelivery = async () => {
     console.error('Erro ao salvar entrega', error);
     toast({
       title: 'Erro ao salvar',
-      description: (error as Error).message || 'NÃo foi possí­vel salvar a entrega. Tente novamente.',
+      description: (error as Error).message || 'Não foi possível salvar a entrega. Tente novamente.',
       variant: 'destructive'
     });
   } finally {
     setLoading(false);
   }
 };
+
 
   const resetForm = () => {
     setStep('upload');
@@ -1061,8 +1079,6 @@ const handleSaveDelivery = async () => {
     setStructuredData(createEmptyStructuredData());
     setSelectedDriverUserId(undefined);
   };
-  
-  const statusOptions = ['PENDENTE', 'IN_TRANSIT', 'DELIVERED', 'REFUSED', 'CANCELED'];
 
   return (
     <Dialog open={open} onOpenChange={(o) => { if (!o) resetForm(); onOpenChange(o); }}>
@@ -1169,18 +1185,18 @@ const handleSaveDelivery = async () => {
           </div>
         )}
 
-        {step === 'form' && (
+                {step === 'form' && (
           <div className="space-y-6">
             <div className="flex items-center gap-2 p-3 rounded-lg bg-accent/50">
               {isSefazValid ? (
                 <>
                   <CheckCircle className="h-5 w-5 text-green-600" />
-                  <span className="text-sm font-medium">Documento SEFAZ vÃ¡lido - Dados extraÃ­dos automaticamente</span>
+                  <span className="text-sm font-medium">Documento SEFAZ válido - Dados extraídos automaticamente</span>
                 </>
               ) : (
                 <>
                   <AlertTriangle className="h-5 w-5 text-yellow-600" />
-                  <span className="text-sm font-medium">Preenchimento manual necessÃ¡rio</span>
+                  <span className="text-sm font-medium">Preenchimento manual necessário</span>
                 </>
               )}
               <Button variant="ghost" size="sm" onClick={() => setIsEditing(!isEditing)} className="ml-auto">
@@ -1189,7 +1205,6 @@ const handleSaveDelivery = async () => {
               </Button>
             </div>
 
-            {/* Seletor de Motorista (renderizado condicionalmente) */}
             {allowDriverSelection && (
               <div className="space-y-2">
                 <h3 className="text-sm font-semibold text-muted-foreground">Atribuir a Motorista</h3>
@@ -1201,7 +1216,7 @@ const handleSaveDelivery = async () => {
                 >
                   <option value="" disabled>Selecione um motorista</option>
                   {drivers.map((driver) => (
-                      <option key={driver.id} value={driver.userId ?? driver.id}>
+                    <option key={driver.id} value={driver.userId ?? driver.id}>
                       {driver.name}
                     </option>
                   ))}
@@ -1210,374 +1225,53 @@ const handleSaveDelivery = async () => {
             )}
 
             <div className="space-y-4">
-              <h3 className="text-sm font-semibold text-muted-foreground">Dados da Nota Fiscal</h3>
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+              <h3 className="text-sm font-semibold text-muted-foreground">Dados da Nota</h3>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div className="space-y-2">
-                  <Label>NÃºmero</Label>
+                  <Label>Número da NF</Label>
                   <Input value={structuredData.nf_data.numero} onChange={(e) => updateStructuredField('nf_data', 'numero', e.target.value)} disabled={!isEditing} />
                 </div>
                 <div className="space-y-2">
-                  <Label>SÃ©rie</Label>
-                  <Input value={structuredData.nf_data.serie} onChange={(e) => updateStructuredField('nf_data', 'serie', e.target.value)} disabled={!isEditing} />
-                </div>
-                <div className="space-y-2 md:col-span-2 lg:col-span-1">
                   <Label>Chave de Acesso</Label>
                   <Input value={structuredData.nf_data.chave} onChange={(e) => updateStructuredField('nf_data', 'chave', e.target.value)} disabled={!isEditing} />
                 </div>
-                <div className="space-y-2">
-                  <Label>Data de EmissÃ£o</Label>
-                  <Input type="date" value={structuredData.nf_data.data_emissao} onChange={(e) => updateStructuredField('nf_data', 'data_emissao', e.target.value)} disabled={!isEditing} />
-                </div>
-                <div className="space-y-2">
-                  <Label>Data de SaÃ­da</Label>
-                  <Input type="date" value={structuredData.nf_data.data_saida} onChange={(e) => updateStructuredField('nf_data', 'data_saida', e.target.value)} disabled={!isEditing} />
-                </div>
-                <div className="space-y-2">
-                  <Label>Protocolo de AutorizaÃ§Ã£o</Label>
-                  <Input value={structuredData.nf_data.protocolo_autorizacao} onChange={(e) => updateStructuredField('nf_data', 'protocolo_autorizacao', e.target.value)} disabled={!isEditing} />
-                </div>
               </div>
             </div>
 
             <div className="space-y-4">
-              <h3 className="text-sm font-semibold text-muted-foreground">Remetente</h3>
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                <div className="space-y-2">
-                  <Label>RazÃ£o Social</Label>
-                  <Input value={structuredData.remetente.razao_social} onChange={(e) => updateStructuredField('remetente', 'razao_social', e.target.value)} disabled={!isEditing} />
-                </div>
-                <div className="space-y-2">
-                  <Label>CNPJ/CPF</Label>
-                  <Input value={structuredData.remetente.cnpj_cpf} onChange={(e) => updateStructuredField('remetente', 'cnpj_cpf', e.target.value)} disabled={!isEditing} />
-                </div>
-                <div className="space-y-2 md:col-span-2 lg:col-span-3">
-                  <Label>EndereÃ§o</Label>
-                  <Input value={structuredData.remetente.endereco} onChange={(e) => updateStructuredField('remetente', 'endereco', e.target.value)} disabled={!isEditing} />
-                </div>
-                <div className="space-y-2">
-                  <Label>MunicÃ­pio</Label>
-                  <Input value={structuredData.remetente.municipio} onChange={(e) => updateStructuredField('remetente', 'municipio', e.target.value)} disabled={!isEditing} />
-                </div>
-                <div className="space-y-2">
-                  <Label>UF</Label>
-                  <Input value={structuredData.remetente.uf} onChange={(e) => updateStructuredField('remetente', 'uf', e.target.value)} disabled={!isEditing} maxLength={2} />
-                </div>
-                <div className="space-y-2">
-                  <Label>CEP</Label>
-                  <Input value={structuredData.remetente.cep} onChange={(e) => updateStructuredField('remetente', 'cep', e.target.value)} disabled={!isEditing} />
-                </div>
-                <div className="space-y-2">
-                  <Label>Telefone</Label>
-                  <Input value={structuredData.remetente.telefone} onChange={(e) => updateStructuredField('remetente', 'telefone', e.target.value)} disabled={!isEditing} />
-                </div>
-                <div className="space-y-2">
-                  <Label>InscriÃ§Ã£o Estadual</Label>
-                  <Input value={structuredData.remetente.inscricao_estadual} onChange={(e) => updateStructuredField('remetente', 'inscricao_estadual', e.target.value)} disabled={!isEditing} />
-                </div>
+              <h3 className="text-sm font-semibold text-muted-foreground">Cliente</h3>
+              <div className="space-y-2">
+                <Label>Nome do Cliente</Label>
+                <Input value={structuredData.destinatario.razao_social} onChange={(e) => updateStructuredField('destinatario', 'razao_social', e.target.value)} disabled={!isEditing} />
               </div>
             </div>
 
             <div className="space-y-4">
-              <h3 className="text-sm font-semibold text-muted-foreground">DestinatÃ¡rio</h3>
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+              <h3 className="text-sm font-semibold text-muted-foreground">Datas</h3>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div className="space-y-2">
-                  <Label>RazÃ£o Social</Label>
-                  <Input value={structuredData.destinatario.razao_social} onChange={(e) => updateStructuredField('destinatario', 'razao_social', e.target.value)} disabled={!isEditing} />
+                  <Label>Data de emissão</Label>
+                  <Input type="date" value={formatDateForInput(structuredData.nf_data.data_emissao)} onChange={(e) => updateStructuredField('nf_data', 'data_emissao', e.target.value)} disabled={!isEditing} />
                 </div>
                 <div className="space-y-2">
-                  <Label>CNPJ/CPF</Label>
-                  <Input value={structuredData.destinatario.cnpj_cpf} onChange={(e) => updateStructuredField('destinatario', 'cnpj_cpf', e.target.value)} disabled={!isEditing} />
-                </div>
-                <div className="space-y-2 md:col-span-2 lg:col-span-3">
-                  <Label>EndereÃ§o</Label>
-                  <Input value={structuredData.destinatario.endereco} onChange={(e) => updateStructuredField('destinatario', 'endereco', e.target.value)} disabled={!isEditing} />
-                </div>
-                <div className="space-y-2">
-                  <Label>MunicÃ­pio</Label>
-                  <Input value={structuredData.destinatario.municipio} onChange={(e) => updateStructuredField('destinatario', 'municipio', e.target.value)} disabled={!isEditing} />
-                </div>
-                <div className="space-y-2">
-                  <Label>UF</Label>
-                  <Input value={structuredData.destinatario.uf} onChange={(e) => updateStructuredField('destinatario', 'uf', e.target.value)} disabled={!isEditing} maxLength={2} />
-                </div>
-                <div className="space-y-2">
-                  <Label>CEP</Label>
-                  <Input value={structuredData.destinatario.cep} onChange={(e) => updateStructuredField('destinatario', 'cep', e.target.value)} disabled={!isEditing} />
-                </div>
-                <div className="space-y-2">
-                  <Label>Telefone</Label>
-                  <Input value={structuredData.destinatario.telefone} onChange={(e) => updateStructuredField('destinatario', 'telefone', e.target.value)} disabled={!isEditing} />
-                </div>
-                <div className="space-y-2">
-                  <Label>InscriÃ§Ã£o Estadual</Label>
-                  <Input value={structuredData.destinatario.inscricao_estadual} onChange={(e) => updateStructuredField('destinatario', 'inscricao_estadual', e.target.value)} disabled={!isEditing} />
+                  <Label>Data de saída</Label>
+                  <Input type="date" value={formatDateForInput(structuredData.nf_data.data_saida)} onChange={(e) => updateStructuredField('nf_data', 'data_saida', e.target.value)} disabled={!isEditing} />
                 </div>
               </div>
             </div>
 
             <div className="space-y-4">
               <h3 className="text-sm font-semibold text-muted-foreground">Valores</h3>
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div className="space-y-2">
-                  <Label>Valor Total da Nota</Label>
-                  <Input value={structuredData.valores.valor_total_nota} onChange={(e) => updateStructuredField('valores', 'valor_total_nota', e.target.value)} disabled={!isEditing} />
-                </div>
-                <div className="space-y-2">
-                  <Label>Valor dos Produtos</Label>
+                  <Label>Valor total da entrega</Label>
                   <Input value={structuredData.valores.valor_total_produtos} onChange={(e) => updateStructuredField('valores', 'valor_total_produtos', e.target.value)} disabled={!isEditing} />
                 </div>
                 <div className="space-y-2">
-                  <Label>Valor do Frete</Label>
-                  <Input value={structuredData.valores.valor_frete} onChange={(e) => updateStructuredField('valores', 'valor_frete', e.target.value)} disabled={!isEditing} />
-                </div>
-                <div className="space-y-2">
-                  <Label>Outras Despesas</Label>
-                  <Input value={structuredData.valores.outras_despesas} onChange={(e) => updateStructuredField('valores', 'outras_despesas', e.target.value)} disabled={!isEditing} />
-                </div>
-                <div className="space-y-2">
-                  <Label>Desconto</Label>
-                  <Input value={structuredData.valores.desconto} onChange={(e) => updateStructuredField('valores', 'desconto', e.target.value)} disabled={!isEditing} />
-                </div>
-                <div className="space-y-2">
-                  <Label>Valor do Seguro</Label>
-                  <Input value={structuredData.valores.valor_seguro} onChange={(e) => updateStructuredField('valores', 'valor_seguro', e.target.value)} disabled={!isEditing} />
-                </div>
-                <div className="space-y-2">
-                  <Label>Valor IPI</Label>
-                  <Input value={structuredData.valores.valor_ipi} onChange={(e) => updateStructuredField('valores', 'valor_ipi', e.target.value)} disabled={!isEditing} />
-                </div>
-                <div className="space-y-2">
-                  <Label>Valor ICMS</Label>
-                  <Input value={structuredData.valores.valor_icms} onChange={(e) => updateStructuredField('valores', 'valor_icms', e.target.value)} disabled={!isEditing} />
-                </div>
-                <div className="space-y-2">
-                  <Label>Total Tributos</Label>
-                  <Input value={structuredData.valores.valor_total_tributos} onChange={(e) => updateStructuredField('valores', 'valor_total_tributos', e.target.value)} disabled={!isEditing} />
+                  <Label>Valor total da nota</Label>
+                  <Input value={structuredData.valores.valor_total_nota} onChange={(e) => updateStructuredField('valores', 'valor_total_nota', e.target.value)} disabled={!isEditing} />
                 </div>
               </div>
-            </div>
-
-            <div className="space-y-4">
-              <h3 className="text-sm font-semibold text-muted-foreground">Transportadora</h3>
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                <div className="space-y-2">
-                  <Label>RazÃ£o Social</Label>
-                  <Input value={structuredData.transportadora.razao_social} onChange={(e) => updateStructuredField('transportadora', 'razao_social', e.target.value)} disabled={!isEditing} />
-                </div>
-                <div className="space-y-2">
-                  <Label>CNPJ/CPF</Label>
-                  <Input value={structuredData.transportadora.cnpj_cpf} onChange={(e) => updateStructuredField('transportadora', 'cnpj_cpf', e.target.value)} disabled={!isEditing} />
-                </div>
-                <div className="space-y-2 md:col-span-2 lg:col-span-3">
-                  <Label>EndereÃ§o</Label>
-                  <Input value={structuredData.transportadora.endereco} onChange={(e) => updateStructuredField('transportadora', 'endereco', e.target.value)} disabled={!isEditing} />
-                </div>
-                <div className="space-y-2">
-                  <Label>MunicÃ­pio</Label>
-                  <Input value={structuredData.transportadora.municipio} onChange={(e) => updateStructuredField('transportadora', 'municipio', e.target.value)} disabled={!isEditing} />
-                </div>
-                <div className="space-y-2">
-                  <Label>UF</Label>
-                  <Input value={structuredData.transportadora.uf} onChange={(e) => updateStructuredField('transportadora', 'uf', e.target.value)} disabled={!isEditing} maxLength={2} />
-                </div>
-                <div className="space-y-2">
-                  <Label>Telefone</Label>
-                  <Input value={structuredData.transportadora.telefone} onChange={(e) => updateStructuredField('transportadora', 'telefone', e.target.value)} disabled={!isEditing} />
-                </div>
-              </div>
-            </div>
-
-            <div className="space-y-4">
-              <h3 className="text-sm font-semibold text-muted-foreground">Volumes</h3>
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                <div className="space-y-2">
-                  <Label>Quantidade</Label>
-                  <Input value={structuredData.volumes.quantidade} onChange={(e) => updateStructuredField('volumes', 'quantidade', e.target.value)} disabled={!isEditing} />
-                </div>
-                <div className="space-y-2">
-                  <Label>EspÃ©cie</Label>
-                  <Input value={structuredData.volumes.especie} onChange={(e) => updateStructuredField('volumes', 'especie', e.target.value)} disabled={!isEditing} />
-                </div>
-                <div className="space-y-2">
-                  <Label>Marca</Label>
-                  <Input value={structuredData.volumes.marca} onChange={(e) => updateStructuredField('volumes', 'marca', e.target.value)} disabled={!isEditing} />
-                </div>
-                <div className="space-y-2">
-                  <Label>NÃºmero</Label>
-                  <Input value={structuredData.volumes.numero} onChange={(e) => updateStructuredField('volumes', 'numero', e.target.value)} disabled={!isEditing} />
-                </div>
-                <div className="space-y-2">
-                  <Label>Peso Bruto</Label>
-                  <Input value={structuredData.volumes.peso_bruto} onChange={(e) => updateStructuredField('volumes', 'peso_bruto', e.target.value)} disabled={!isEditing} />
-                </div>
-                <div className="space-y-2">
-                  <Label>Peso LÃ­quido</Label>
-                  <Input value={structuredData.volumes.peso_liquido} onChange={(e) => updateStructuredField('volumes', 'peso_liquido', e.target.value)} disabled={!isEditing} />
-                </div>
-              </div>
-            </div>
-
-            <div className="space-y-4">
-              <h3 className="text-sm font-semibold text-muted-foreground">Impostos</h3>
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                <div className="space-y-2">
-                  <Label>Base de CÃ¡lculo ICMS</Label>
-                  <Input value={structuredData.impostos.base_calculo_icms} onChange={(e) => updateStructuredField('impostos', 'base_calculo_icms', e.target.value)} disabled={!isEditing} />
-                </div>
-                <div className="space-y-2">
-                  <Label>Valor ICMS</Label>
-                  <Input value={structuredData.impostos.valor_icms} onChange={(e) => updateStructuredField('impostos', 'valor_icms', e.target.value)} disabled={!isEditing} />
-                </div>
-                <div className="space-y-2">
-                  <Label>Valor ICMS ST</Label>
-                  <Input value={structuredData.impostos.valor_icms_st} onChange={(e) => updateStructuredField('impostos', 'valor_icms_st', e.target.value)} disabled={!isEditing} />
-                </div>
-                <div className="space-y-2">
-                  <Label>Valor IPI</Label>
-                  <Input value={structuredData.impostos.valor_ipi} onChange={(e) => updateStructuredField('impostos', 'valor_ipi', e.target.value)} disabled={!isEditing} />
-                </div>
-                <div className="space-y-2">
-                  <Label>Total de Tributos</Label>
-                  <Input value={structuredData.impostos.valor_total_tributos} onChange={(e) => updateStructuredField('impostos', 'valor_total_tributos', e.target.value)} disabled={!isEditing} />
-                </div>
-              </div>
-            </div>
-
-            <div className="space-y-3">
-              <div className="flex items-center justify-between">
-                <h3 className="text-sm font-semibold text-muted-foreground">Duplicatas</h3>
-                {isEditing && (
-                  <Button variant="outline" size="sm" onClick={addDuplicata}>
-                    <Plus className="h-4 w-4 mr-1" /> Adicionar
-                  </Button>
-                )}
-              </div>
-              {structuredData.duplicatas.length === 0 ? (
-                <p className="text-sm text-muted-foreground">Nenhuma duplicata informada.</p>
-              ) : (
-                <div className="space-y-3">
-                  {structuredData.duplicatas.map((duplicata, index) => (
-                    <div key={index} className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 items-end border rounded-md p-3">
-                      <div className="space-y-2">
-                        <Label>Identificador</Label>
-                        <Input value={duplicata.identificador} onChange={(e) => updateDuplicataField(index, 'identificador', e.target.value)} disabled={!isEditing} />
-                      </div>
-                      <div className="space-y-2">
-                        <Label>Valor</Label>
-                        <Input value={duplicata.valor} onChange={(e) => updateDuplicataField(index, 'valor', e.target.value)} disabled={!isEditing} />
-                      </div>
-                      <div className="space-y-2">
-                        <Label>Data de Vencimento</Label>
-                        <Input type="date" value={duplicata.data_vencimento} onChange={(e) => updateDuplicataField(index, 'data_vencimento', e.target.value)} disabled={!isEditing} />
-                      </div>
-                      {isEditing && (
-                        <Button variant="ghost" size="sm" onClick={() => removeDuplicata(index)}>
-                          <Trash2 className="h-4 w-4 text-muted-foreground" />
-                        </Button>
-                      )}
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
-
-            <div className="space-y-3">
-              <div className="flex items-center justify-between">
-                <h3 className="text-sm font-semibold text-muted-foreground">Itens da Nota</h3>
-                {isEditing && (
-                  <Button variant="outline" size="sm" onClick={addItem}>
-                    <Plus className="h-4 w-4 mr-1" /> Adicionar Item
-                  </Button>
-                )}
-              </div>
-              {structuredData.itens_de_linha.length === 0 ? (
-                <p className="text-sm text-muted-foreground">Nenhum item informado.</p>
-              ) : (
-                <div className="space-y-4">
-                  {structuredData.itens_de_linha.map((item, index) => (
-                    <div key={index} className="border rounded-md p-4 space-y-3">
-                      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
-                        <div className="space-y-2">
-                          <Label>CÃ³digo</Label>
-                          <Input value={item.codigo_prod} onChange={(e) => updateItemField(index, 'codigo_prod', e.target.value)} disabled={!isEditing} />
-                        </div>
-                        <div className="space-y-2 sm:col-span-2 md:col-span-3 lg:col-span-2">
-                          <Label>DescriÃ§Ã£o</Label>
-                          <Input value={item.descricao} onChange={(e) => updateItemField(index, 'descricao', e.target.value)} disabled={!isEditing} />
-                        </div>
-                        <div className="space-y-2">
-                          <Label>Quantidade</Label>
-                          <Input value={item.quantidade} onChange={(e) => updateItemField(index, 'quantidade', e.target.value)} disabled={!isEditing} />
-                        </div>
-                        <div className="space-y-2">
-                          <Label>Unidade</Label>
-                          <Input value={item.unidade} onChange={(e) => updateItemField(index, 'unidade', e.target.value)} disabled={!isEditing} />
-                        </div>
-                        <div className="space-y-2">
-                          <Label>Valor UnitÃ¡rio</Label>
-                          <Input value={item.valor_unitario} onChange={(e) => updateItemField(index, 'valor_unitario', e.target.value)} disabled={!isEditing} />
-                        </div>
-                        <div className="space-y-2">
-                          <Label>Valor Total</Label>
-                          <Input value={item.valor_total} onChange={(e) => updateItemField(index, 'valor_total', e.target.value)} disabled={!isEditing} />
-                        </div>
-                        <div className="space-y-2">
-                          <Label>NCM</Label>
-                          <Input value={item.ncm ?? ''} onChange={(e) => updateItemField(index, 'ncm', e.target.value)} disabled={!isEditing} />
-                        </div>
-                        <div className="space-y-2">
-                          <Label>CFOP</Label>
-                          <Input value={item.cfop ?? ''} onChange={(e) => updateItemField(index, 'cfop', e.target.value)} disabled={!isEditing} />
-                        </div>
-                      </div>
-                      {isEditing && (
-                        <div className="flex justify-end">
-                          <Button variant="ghost" size="sm" onClick={() => removeItem(index)}>
-                            <Trash2 className="h-4 w-4 text-muted-foreground" />
-                          </Button>
-                        </div>
-                      )}
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
-            
-            <div className="space-y-2">
-              <Label htmlFor="infoComplementares">InformaÃ§Ãµes Complementares</Label>
-              <Textarea
-                id="infoComplementares"
-                value={structuredData.informacoes_complementares}
-                onChange={(e) => setStructuredData(prev => ({ ...prev, informacoes_complementares: e.target.value }))}
-                disabled={!isEditing}
-                rows={3}
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="rawText">Texto bruto extraÃ­do</Label>
-              <Textarea
-                id="rawText"
-                value={structuredData.raw_text}
-                onChange={(e) => setStructuredData(prev => ({ ...prev, raw_text: e.target.value }))}
-                disabled={!isEditing}
-                rows={6}
-              />
-            </div>
-
-            <div className="space-y-2">
-              <Label>Status da entrega</Label>
-              <select
-                className="h-10 rounded-md border border-input bg-background px-3 py-2 text-sm"
-                value={structuredData.status}
-                onChange={(e) => setStructuredData(prev => ({ ...prev, status: e.target.value }))}
-                disabled={!isEditing}
-              >
-                {statusOptions.map((option) => (
-                  <option key={option} value={option}>
-                    {option}
-                  </option>
-                ))}
-              </select>
             </div>
 
             <div className="flex gap-3 pt-4">
@@ -1593,6 +1287,7 @@ const handleSaveDelivery = async () => {
             </div>
           </div>
         )}
+
       </DialogContent>
     </Dialog>
   );
