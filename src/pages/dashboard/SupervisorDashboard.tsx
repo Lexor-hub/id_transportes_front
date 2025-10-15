@@ -897,7 +897,6 @@ export const SupervisorDashboard = () => {
               <p className="text-sm text-muted-foreground">Sem alertas no momento.</p>
             )}
           </CardContent>
-          </CardContent>
         </Card>
       </div>
       
