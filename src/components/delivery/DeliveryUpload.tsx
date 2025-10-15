@@ -998,6 +998,8 @@ const handleSaveDelivery = async () => {
       delivery_address: normalizeString(structuredData.destinatario.endereco),
       emission_date: normalizeDateValue(structuredData.nf_data.data_emissao),
       departure_date: normalizeDateValue(structuredData.nf_data.data_saida),
+      // CORREÇÃO: Adiciona a data esperada da entrega para o filtro do dashboard funcionar.
+      delivery_date_expected: normalizeDateValue(structuredData.nf_data.data_saida),
       merchandise_value: normalizeString(structuredData.valores.valor_total_produtos),
       invoice_total_value: normalizeString(structuredData.valores.valor_total_nota),
     };
