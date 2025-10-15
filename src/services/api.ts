@@ -10,6 +10,7 @@ export type DriverLocationPayload = {
   speed?: number;
   heading?: number;
   delivery_id?: string | number | null;
+  vehicle_id?: string | number | null;
 };
 
 export type DriverStatus =
@@ -68,6 +69,7 @@ class ApiService {
     if (typeof payload.speed === 'number') body.speed = payload.speed;
     if (typeof payload.heading === 'number') body.heading = payload.heading;
     if (payload.delivery_id !== undefined && payload.delivery_id !== null) body.delivery_id = payload.delivery_id;
+    if (payload.vehicle_id !== undefined && payload.vehicle_id !== null) body.vehicle_id = String(payload.vehicle_id);
     return this.request<any>('/api/tracking/location', { method: 'POST', body: JSON.stringify(body) });
   }
 

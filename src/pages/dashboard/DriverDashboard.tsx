@@ -1,4 +1,4 @@
-﻿import React, { useState, useEffect, useRef, useCallback } from 'react';
+﻿import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -14,12 +14,14 @@ import {
     Plus,
     Route,
     Upload,
-    Trash2
+    Trash2,
+    Car
 } from 'lucide-react';
 import { apiService } from '@/services/api';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/hooks/use-toast';
 import { DeliveryUpload } from '@/components/delivery/DeliveryUpload';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 
 // CORRIGIDO: A interface agora inclui 'createdAt' e 'driverId'
 interface Delivery {
@@ -53,6 +55,12 @@ interface ApiDelivery {
     receipt_image_url?: string; // Adicionado para corresponder à API
     image_url?: string; // Adicionado para compatibilidade
     driver_id?: number;
+}
+
+interface VehicleOption {
+    id: string;
+    label: string;
+    subtitle?: string;
 }
 
 const GPS_ACCURACY_THRESHOLD_METERS = 50;
@@ -95,6 +103,12 @@ export const DriverDashboard = () => {
     const [showReceiptModal, setShowReceiptModal] = useState(false);
     const [receiptImage, setReceiptImage] = useState<string | null>(null);
     const [receiptLoading, setReceiptLoading] = useState(false);
+    const [vehicles, setVehicles] = useState<VehicleOption[]>([]);
+    const [vehiclesLoading, setVehiclesLoading] = useState(false);
+    const [vehicleSelectionDraft, setVehicleSelectionDraft] = useState<string | null>(null);
+    const [showVehicleSelectionModal, setShowVehicleSelectionModal] = useState(false);
+    const [pendingRouteStart, setPendingRouteStart] = useState(false);
+    const [activeVehicleId, setActiveVehicleId] = useState<string | null>(null);
 
     const [hasLocationConsent, setHasLocationConsent] = useState<boolean>(() => {
         if (typeof window === 'undefined') return false;
@@ -109,8 +123,122 @@ export const DriverDashboard = () => {
     const awaitingAccurateFixRef = useRef(false);
     const accuracyToastShownRef = useRef(false);
 
+    const driverId = resolveDriverId();
+    const activeVehicle = useMemo(
+        () => vehicles.find((vehicle) => vehicle.id === activeVehicleId) ?? null,
+        [vehicles, activeVehicleId]
+    );
 
 
+
+    useEffect(() => {
+        if (!driverId) return;
+        const storedVehicle = localStorage.getItem(`driver_vehicle_${driverId}`);
+        if (storedVehicle) {
+            setActiveVehicleId(storedVehicle);
+        }
+    }, [driverId]);
+
+    useEffect(() => {
+        if (!driverId) {
+            setVehicles([]);
+            setActiveVehicleId(null);
+            return;
+        }
+
+        let ignore = false;
+        const fetchVehicles = async () => {
+            setVehiclesLoading(true);
+            try {
+                const response = await apiService.getVehicles({ status: 'active' });
+                if (!response.success || !Array.isArray(response.data)) {
+                    if (!ignore) {
+                        setVehicles([]);
+                        if (response.success === false && response.error) {
+                            toast({
+                                title: 'Falha ao carregar veículos',
+                                description: response.error,
+                                variant: 'destructive'
+                            });
+                        }
+                    }
+                    return;
+                }
+
+                const normalized = (response.data as Array<Record<string, unknown>>)
+                    .map((raw) => {
+                        const idCandidate =
+                            raw?.['id'] ??
+                            raw?.['vehicle_id'] ??
+                            raw?.['vehicleId'];
+                        if (idCandidate === undefined || idCandidate === null) {
+                            return null;
+                        }
+                        const id = String(idCandidate);
+                        const companyCandidate = raw?.['company_id'] ?? raw?.['companyId'];
+                        if (
+                            companyCandidate !== undefined &&
+                            companyCandidate !== null &&
+                            user?.company_id &&
+                            String(companyCandidate) !== String(user.company_id)
+                        ) {
+                            return null;
+                        }
+
+                        const statusValue =
+                            typeof raw?.['status'] === 'string' ? raw?.['status'] :
+                                (typeof raw?.['vehicle_status'] === 'string' ? raw?.['vehicle_status'] : undefined);
+                        const isActiveFlag =
+                            raw?.['is_active'] !== undefined
+                                ? Boolean(raw['is_active'])
+                                : (typeof statusValue === 'string' ? statusValue.toLowerCase() !== 'inactive' : true);
+
+                        if (!isActiveFlag) {
+                            return null;
+                        }
+
+                        const plate = raw?.['plate'] ?? raw?.['placa'] ?? raw?.['license_plate'];
+                        const model = raw?.['model'] ?? raw?.['modelo'] ?? raw?.['name'];
+                        const brand = raw?.['brand'] ?? raw?.['marca'];
+                        const color = raw?.['color'] ?? raw?.['cor'];
+
+                        const labelParts: string[] = [];
+                        if (plate) labelParts.push(String(plate).toUpperCase());
+                        if (model) labelParts.push(String(model));
+                        const label = labelParts.length ? labelParts.join(' - ') : `Veiculo ${id}`;
+
+                        const subtitleParts: string[] = [];
+                        if (brand) subtitleParts.push(String(brand));
+                        if (color) subtitleParts.push(String(color));
+                        const subtitle = subtitleParts.length ? subtitleParts.join(' - ') : undefined;
+
+                        return { id, label, subtitle } as VehicleOption;
+                    })
+                    .filter((value): value is VehicleOption => Boolean(value));
+
+                if (!ignore) {
+                    setVehicles(normalized);
+                }
+            } catch (error) {
+                if (!ignore) {
+                    toast({
+                        title: 'Erro ao carregar veículos',
+                        description: error instanceof Error ? error.message : 'Não foi possível listar os veículos.',
+                        variant: 'destructive'
+                    });
+                }
+            } finally {
+                if (!ignore) {
+                    setVehiclesLoading(false);
+                }
+            }
+        };
+
+        fetchVehicles();
+        return () => {
+            ignore = true;
+        };
+    }, [driverId, toast, user?.company_id]);
 
     const stopLocationTracking = useCallback(() => {
         if (typeof navigator !== 'undefined' && navigator.geolocation && locationWatchId.current !== null) {
@@ -183,9 +311,10 @@ export const DriverDashboard = () => {
                 accuracy: typeof accuracy === 'number' ? accuracy : undefined,
                 speed: typeof speed === 'number' ? speed : undefined,
                 heading: typeof heading === 'number' ? heading : undefined,
+                vehicle_id: activeVehicleId ?? undefined,
             });
         } catch (error) {}
-    }, [lastKnownPosition, routeStarted, resolveDriverId, toast]);
+    }, [lastKnownPosition, routeStarted, resolveDriverId, toast, activeVehicleId]);
 
     const updateDriverStatus = useCallback(async (status: 'online' | 'offline' | 'idle') => {
         const driverId = resolveDriverId();
@@ -397,23 +526,104 @@ export const DriverDashboard = () => {
         });
     };
 
-    const executeRouteStart = () => {
+    const executeRouteStart = useCallback((vehicleInfoOverride?: VehicleOption | null) => {
         if (routeStarted) return;
         setRouteStarted(true);
         updateDriverStatus('online');
+
+        const vehicleInfo = vehicleInfoOverride ?? activeVehicle;
+        const vehicleDescription = vehicleInfo
+            ? `Veiculo selecionado: ${vehicleInfo.label}${vehicleInfo.subtitle ? ` • ${vehicleInfo.subtitle}` : ''}`
+            : 'Lembre-se de fotografar os comprovantes.';
+
         toast({
             title: 'Rota iniciada!',
-            description: 'Boa viagem! Lembre-se de fotografar os comprovantes.'
+            description: `Boa viagem! ${vehicleDescription}`
         });
         startLocationTracking();
-    };
+    }, [routeStarted, updateDriverStatus, activeVehicle, toast, startLocationTracking]);
 
-    const handleStartRoute = () => {
+    const handleVehicleSelectionCancel = useCallback((showWarning = true) => {
+        setShowVehicleSelectionModal(false);
+        if (pendingRouteStart) {
+            if (showWarning) {
+                toast({
+                    title: 'Rota nao iniciada',
+                    description: 'Selecione um veiculo antes de comecar a rota.',
+                    variant: 'destructive'
+                });
+            }
+            setPendingRouteStart(false);
+        }
+    }, [pendingRouteStart, toast]);
+
+    const requestVehicleSelection = useCallback((startAfterSelection = false) => {
+        if (vehiclesLoading) {
+            toast({
+                title: 'Carregando veiculos',
+                description: 'Aguarde enquanto listamos os veiculos disponiveis.'
+            });
+            return;
+        }
+
+        if (vehicles.length === 0) {
+            toast({
+                title: 'Nenhum veiculo disponivel',
+                description: 'Solicite ao supervisor a associacao de um veiculo antes de iniciar a rota.',
+                variant: 'destructive'
+            });
+            return;
+        }
+
+        setVehicleSelectionDraft(activeVehicleId ?? vehicles[0].id);
+        setPendingRouteStart(startAfterSelection);
+        setShowVehicleSelectionModal(true);
+    }, [vehiclesLoading, vehicles, activeVehicleId, toast]);
+
+    const handleVehicleSelectionConfirm = useCallback(() => {
+        if (!vehicleSelectionDraft) {
+            toast({
+                title: 'Selecione um veiculo',
+                description: 'Escolha o veiculo que sera utilizado na rota.',
+                variant: 'destructive'
+            });
+            return;
+        }
+
+        const selectedVehicle = vehicles.find((vehicle) => vehicle.id === vehicleSelectionDraft) ?? null;
+        if (!selectedVehicle) {
+            toast({
+                title: 'Veiculo invalido',
+                description: 'Nao foi possivel localizar o veiculo selecionado.',
+                variant: 'destructive'
+            });
+            return;
+        }
+
+        if (driverId) {
+            localStorage.setItem(`driver_vehicle_${driverId}`, vehicleSelectionDraft);
+        }
+        setActiveVehicleId(vehicleSelectionDraft);
+
+        const shouldStart = pendingRouteStart;
+        handleVehicleSelectionCancel(false);
+
+        if (shouldStart) {
+            executeRouteStart(selectedVehicle);
+        } else {
+            toast({
+                title: 'Veiculo selecionado',
+                description: `${selectedVehicle.label}${selectedVehicle.subtitle ? ` • ${selectedVehicle.subtitle}` : ''}`
+            });
+        }
+    }, [vehicleSelectionDraft, vehicles, pendingRouteStart, executeRouteStart, toast, driverId, handleVehicleSelectionCancel]);
+
+const handleStartRoute = () => {
         if (!hasLocationConsent) {
             setShowConsentDialog(true);
             return;
         }
-        executeRouteStart();
+        requestVehicleSelection(true);
     };
 
     const handleFinishRoute = () => {
@@ -477,7 +687,7 @@ const handleDisableLocation = () => {
             localStorage.setItem('driver_location_consent', 'true');
         }
         setShowConsentDialog(false);
-        executeRouteStart();
+        requestVehicleSelection(true);
     };
 
     const handleConsentDecline = () => {
@@ -742,10 +952,39 @@ const handleDisableLocation = () => {
                 <CardHeader>
                     <CardTitle className="flex items-center gap-2">
                         <Camera className="h-5 w-5" />
-                        Ações Rápidas
+                        Acoes Rapidas
                     </CardTitle>
                 </CardHeader>
                 <CardContent className="grid gap-3">
+                    <div className="rounded-md border border-dashed p-4 bg-muted/30 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+                        <div className="flex items-start sm:items-center gap-3">
+                            <div className="rounded-md bg-white p-2 shadow-sm">
+                                <Car className="h-5 w-5 text-muted-foreground" />
+                            </div>
+                            <div>
+                                <p className="text-xs uppercase text-muted-foreground tracking-wide">Veiculo selecionado</p>
+                                <p className="font-medium">
+                                    {activeVehicle
+                                        ? activeVehicle.label
+                                        : vehiclesLoading
+                                            ? 'Carregando veiculos...'
+                                            : 'Nenhum veiculo selecionado'}
+                                </p>
+                                {activeVehicle?.subtitle && (
+                                    <p className="text-xs text-muted-foreground">{activeVehicle.subtitle}</p>
+                                )}
+                            </div>
+                        </div>
+                        <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => requestVehicleSelection(false)}
+                            disabled={vehiclesLoading}
+                        >
+                            {activeVehicle ? 'Trocar veiculo' : 'Selecionar veiculo'}
+                        </Button>
+                    </div>
+
                     <Button
                         variant="outline"
                         className="justify-start h-12"
@@ -761,17 +1000,16 @@ const handleDisableLocation = () => {
                     {routeStarted && (
                         <div className="pl-12 mt-2 text-xs text-gray-500">
                             {requestingLocation
-                                ? 'Aguardando confirmação da localização...'
+                                ? 'Aguardando confirmacao da localizacao...'
                                 : locationActive
                                     ? lastKnownPosition
-                                        ? `Última atualização às ${new Date(lastKnownPosition.timestamp).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })} (lat ${lastKnownPosition.coords.latitude.toFixed(5)}, lon ${lastKnownPosition.coords.longitude.toFixed(5)})`
-                                        : 'Localização ativa. Aguardando primeira atualização...'
-                                    : 'Localização desligada no momento.'}
+                                        ? `Ultima atualizacao as ${new Date(lastKnownPosition.timestamp).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })} (lat ${lastKnownPosition.coords.latitude.toFixed(5)}, lon ${lastKnownPosition.coords.longitude.toFixed(5)})`
+                                        : 'Localizacao ativa. Aguardando primeira atualizacao...'
+                                    : 'Localizacao desligada no momento.'}
                         </div>
                     )}
                 </CardContent>
             </Card>
-
             <Card>
                 <CardHeader>
                     <CardTitle>Minhas Entregas - Hoje</CardTitle>
@@ -1030,6 +1268,56 @@ const handleDisableLocation = () => {
                 }}
                 initialData={getInitialDataForUpload()}
             />
+
+            <Dialog open={showVehicleSelectionModal} onOpenChange={(open) => {
+                if (!open) {
+                    if (pendingRouteStart) {
+                        handleVehicleSelectionCancel();
+                    } else {
+                        setShowVehicleSelectionModal(false);
+                    }
+                } else {
+                    setShowVehicleSelectionModal(true);
+                }
+            }}>
+                <DialogContent className="sm:max-w-[425px]">
+                    <DialogHeader>
+                        <DialogTitle>Selecione o veiculo</DialogTitle>
+                        <DialogDescription>Escolha o veiculo que sera utilizado nesta rota.</DialogDescription>
+                    </DialogHeader>
+
+                    <div className="space-y-4">
+                        {vehiclesLoading ? (
+                            <div className="text-sm text-muted-foreground">Carregando veiculos disponiveis...</div>
+                        ) : vehicles.length === 0 ? (
+                            <div className="text-sm text-destructive">Nenhum veiculo disponivel. Procure o supervisor.</div>
+                        ) : (
+                            <Select value={vehicleSelectionDraft ?? ''} onValueChange={(value) => setVehicleSelectionDraft(value)}>
+                                <SelectTrigger>
+                                    <SelectValue placeholder="Selecione um veiculo" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    {vehicles.map((vehicle) => (
+                                        <SelectItem key={vehicle.id} value={vehicle.id}>
+                                            <div className="flex flex-col">
+                                                <span className="font-medium">{vehicle.label}</span>
+                                                {vehicle.subtitle && (
+                                                    <span className="text-xs text-muted-foreground">{vehicle.subtitle}</span>
+                                                )}
+                                            </div>
+                                        </SelectItem>
+                                    ))}
+                                </SelectContent>
+                            </Select>
+                        )}
+                    </div>
+
+                    <DialogFooter className="gap-2 sm:gap-0">
+                        <Button variant="outline" onClick={() => handleVehicleSelectionCancel()} type="button">Cancelar</Button>
+                        <Button onClick={handleVehicleSelectionConfirm} disabled={vehiclesLoading || vehicles.length === 0} type="button">Confirmar</Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
 
             <Dialog open={showDeleteModal} onOpenChange={(open) => { if (!open) handleCancelDeleteDelivery(); }}>
                 <DialogContent className="sm:max-w-md">
