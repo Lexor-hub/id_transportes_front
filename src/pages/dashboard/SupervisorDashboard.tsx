@@ -357,10 +357,8 @@ export const SupervisorDashboard = () => {
           } as TodayDelivery;
         });
 
-        const filtered = deliveriesData.filter(
-          (delivery) => typeof delivery.createdAt === 'string' && delivery.createdAt.slice(0, 10) === todayIso
-        );
-        const sorted = filtered.sort((a, b) => toTimestamp(b.createdAt) - toTimestamp(a.createdAt));
+        // CORREÇÃO: O backend já retorna a lista correta, então o filtro de data no frontend foi removido.
+        const sorted = deliveriesData.sort((a, b) => toTimestamp(b.createdAt) - toTimestamp(a.createdAt));
 
         setTodayDeliveries(sorted);
         setStats(prev => ({
