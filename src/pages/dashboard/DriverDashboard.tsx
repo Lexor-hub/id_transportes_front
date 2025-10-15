@@ -1,4 +1,4 @@
-﻿import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
+﻿﻿import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -569,13 +569,11 @@ export const DriverDashboard = () => {
                         return dateA - dateB;
                     });
 
-                // Keep completed deliveries visible until the day rolls over.
-                // Consider delivery_date_expected when available (backend may provide it in createdAt or separate field).
+                // Filtra para mostrar apenas as entregas do dia atual.
                 const todayIso = new Date().toISOString().slice(0, 10);
                 const filteredDeliveries = deliveriesData.filter((delivery) => {
                     const createdAtIso = delivery.createdAt ? delivery.createdAt.slice(0, 10) : null;
-                    // Show delivery if it's from today (by createdAt) or if no date is present show it conservatively
-                    return createdAtIso === todayIso || createdAtIso === null;
+                    return createdAtIso === todayIso;
                 });
 
                 setDeliveries(filteredDeliveries as Delivery[]);

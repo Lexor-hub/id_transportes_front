@@ -60,6 +60,12 @@ class ApiService {
 
   async getCurrentLocations() { return this.request<Array<any>>('/api/tracking/drivers/current-locations'); }
   async getSupervisorAlerts() { return this.request<any>('/api/deliveries/recent-alerts'); }
+  async setDriverActiveVehicle(vehicleId: string | number) {
+    return this.request<any>('/api/tracking/driver/vehicle', {
+      method: 'POST',
+      body: JSON.stringify({ vehicle_id: String(vehicleId) }),
+    });
+  }
   async sendDriverLocation(payload: DriverLocationPayload) {
     const body: Record<string, unknown> = {
       driver_id: String(payload.driver_id),
