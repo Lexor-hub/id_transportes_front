@@ -230,6 +230,8 @@ export const SupervisorDashboard = () => {
 
               const vehicleIdRaw = driver['vehicle_id'] ?? driver['vehicleId'];
               const vehicleLabelRaw = driver['vehicle_label'] ?? driver['vehicleLabel'];
+              const vehicleId = vehicleIdRaw !== undefined && vehicleIdRaw !== null ? String(vehicleIdRaw) : null;
+              const vehicleLabel = vehicleLabelRaw ? String(vehicleLabelRaw) : null;
 
               return {
                 id: String(id),
@@ -243,8 +245,8 @@ export const SupervisorDashboard = () => {
                   },
                   now
                 ),
-                vehicleId: vehicleIdRaw !== undefined && vehicleIdRaw !== null ? String(vehicleIdRaw) : null,
-                vehicleLabel: vehicleLabelRaw ? String(vehicleLabelRaw) : null,
+                vehicleId,
+                vehicleLabel,
               } as DriverStatusItem | null;
             })
             .filter((item): item is DriverStatusItem => Boolean(item))
