@@ -1,4 +1,4 @@
-﻿import { useState, useEffect, useCallback } from 'react';
+﻿import { useState, useEffect, useCallback, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { StatsCard } from '@/components/dashboard/StatsCard';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -29,6 +29,8 @@ type DriverStatusItem = {
   speed: number;
   lastUpdate?: string | null;
   status: MovementStatus;
+  vehicleId?: string | null;
+  vehicleLabel?: string | null;
 };
 
 type TodayDelivery = {
@@ -44,6 +46,32 @@ type TodayDelivery = {
   receipt_image_url?: string | null;
   filename?: string | null;
 };
+
+type AlertItem = {
+  id: string;
+  title: string;
+  description: string;
+  severity: 'info' | 'warning' | 'danger';
+  timestamp: string;
+};
+
+const ALERT_STYLE = {
+  danger: {
+    container: 'bg-destructive/5 border border-destructive/30',
+    iconClass: 'text-destructive',
+    icon: AlertTriangle,
+  },
+  warning: {
+    container: 'bg-warning/5 border border-warning/30',
+    iconClass: 'text-warning',
+    icon: AlertTriangle,
+  },
+  info: {
+    container: 'bg-primary/5 border border-primary/20',
+    iconClass: 'text-primary',
+    icon: CheckCircle,
+  },
+} as const;
 
 const formatDeliveryStatus = (status?: string, hasReceipt?: boolean) => {
   const normalized = (status || '').toUpperCase();
@@ -133,6 +161,8 @@ export const SupervisorDashboard = () => {
   const [showReceiptsModal, setShowReceiptsModal] = useState(false);
   const [finishedDeliveries, setFinishedDeliveries] = useState<TodayDelivery[]>([]);
   const [receiptsLoading, setReceiptsLoading] = useState(false);
+  const [serverAlerts, setServerAlerts] = useState<AlertItem[]>([]);
+  const [alertsLoading, setAlertsLoading] = useState(false);
   // filters and pagination for receipts modal
   const [companies, setCompanies] = useState<Array<any>>([]);
   const [drivers, setDrivers] = useState<Array<any>>([]);
@@ -147,6 +177,31 @@ export const SupervisorDashboard = () => {
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const { toast } = useToast();
   const navigate = useNavigate();
+
+  const idleAlerts = useMemo<AlertItem[]>(() => {
+    const alerts: AlertItem[] = [];
+    driverStatuses.forEach((driver) => {
+      if (driver.status !== 'stopped') return;
+      const timestamp = driver.lastUpdate ? new Date(driver.lastUpdate).toISOString() : new Date().toISOString();
+      alerts.push({
+        id: `idle-${driver.id}`,
+        title: `${driver.name} parado`,
+        description: `Sem movimento ha ${formatRelativeTime(driver.lastUpdate)}`,
+        severity: 'warning',
+        timestamp,
+      });
+    });
+    return alerts;
+  }, [driverStatuses]);
+
+  const combinedAlerts = useMemo(() => {
+    const merged = [...serverAlerts, ...idleAlerts];
+    return merged.sort((a, b) => {
+      const timeA = new Date(a.timestamp).getTime();
+      const timeB = new Date(b.timestamp).getTime();
+      return timeB - timeA;
+    });
+  }, [serverAlerts, idleAlerts]);
 
   const loadDriverStatuses = useCallback(
     async ({ silent = false }: { silent?: boolean } = {}) => {
@@ -173,6 +228,9 @@ export const SupervisorDashboard = () => {
               const safeSpeed = Number.isFinite(speedValue) ? speedValue : 0;
               const lastUpdateValue = driver['last_update'];
 
+              const vehicleIdRaw = driver['vehicle_id'] ?? driver['vehicleId'];
+              const vehicleLabelRaw = driver['vehicle_label'] ?? driver['vehicleLabel'];
+
               return {
                 id: String(id),
                 name: String(driver['driver_name'] ?? 'Motorista'),
@@ -185,6 +243,8 @@ export const SupervisorDashboard = () => {
                   },
                   now
                 ),
+                vehicleId: vehicleIdRaw !== undefined && vehicleIdRaw !== null ? String(vehicleIdRaw) : null,
+                vehicleLabel: vehicleLabelRaw ? String(vehicleLabelRaw) : null,
               } as DriverStatusItem | null;
             })
             .filter((item): item is DriverStatusItem => Boolean(item))
@@ -208,6 +268,51 @@ export const SupervisorDashboard = () => {
     },
     [toast]
   );
+
+  const loadSupervisorAlerts = useCallback(async ({ silent = false }: { silent?: boolean } = {}) => {
+    if (!silent) {
+      setAlertsLoading(true);
+    }
+
+    try {
+      const response = await apiService.getSupervisorAlerts();
+      if (response.success && Array.isArray(response.data)) {
+        const normalized: AlertItem[] = (response.data as Array<Record<string, unknown>>).map((item, index) => {
+          const timestamp = typeof item.timestamp === 'string' ? item.timestamp : (typeof item.occurredAt === 'string' ? item.occurredAt : new Date().toISOString());
+          const nfNumber = item.nfNumber ?? item.nf_number ?? null;
+          const driverName = item.driverName ?? item.driver_name ?? 'Motorista';
+          const descriptionParts: string[] = [];
+          if (nfNumber) descriptionParts.push(`NF ${nfNumber}`);
+          if (driverName) descriptionParts.push(`Motorista: ${driverName}`);
+          const vehicleLabel = item.vehicleLabel ?? item.vehicle_label;
+          if (vehicleLabel) descriptionParts.push(`Veiculo: ${vehicleLabel}`);
+          const description = descriptionParts.length ? descriptionParts.join(' • ') : 'Entrega removida pelo motorista.';
+          const rawId = item.id ?? item.deliveryId ?? item.delivery_id ?? `server-${index}`;
+
+          return {
+            id: `${String(rawId)}-${timestamp}`,
+            title: 'Entrega excluida pelo motorista',
+            description,
+            severity: 'danger',
+            timestamp,
+          } as AlertItem;
+        });
+        setServerAlerts(normalized);
+      }
+    } catch (error) {
+      if (!silent) {
+        toast({
+          title: 'Erro ao carregar alertas',
+          description: 'Nao foi possivel atualizar os alertas operacionais.',
+          variant: 'destructive',
+        });
+      }
+    } finally {
+      if (!silent) {
+        setAlertsLoading(false);
+      }
+    }
+  }, [toast]);
 
   const loadTodayDeliveries = useCallback(async () => {
     try {
@@ -256,8 +361,20 @@ export const SupervisorDashboard = () => {
         const sorted = filtered.sort((a, b) => toTimestamp(b.createdAt) - toTimestamp(a.createdAt));
 
         setTodayDeliveries(sorted);
+        setStats(prev => ({
+          ...prev,
+          totalEntregas: sorted.length,
+          entregasRealizadas: sorted.filter(d => d.statusLabel === 'Realizada').length,
+          entregasPendentes: sorted.filter(d => d.statusLabel === 'Em andamento').length,
+        }));
       } else {
         setTodayDeliveries([]);
+        setStats(prev => ({
+          ...prev,
+          totalEntregas: 0,
+          entregasRealizadas: 0,
+          entregasPendentes: 0,
+        }));
   if (!response.success && (response as any).error) {
           toast({
             title: 'Erro ao carregar entregas',
@@ -497,6 +614,15 @@ export const SupervisorDashboard = () => {
     return () => clearInterval(intervalId);
   }, [loadDriverStatuses]);
 
+  useEffect(() => {
+    loadSupervisorAlerts();
+    const alertsInterval = setInterval(() => {
+      loadSupervisorAlerts({ silent: true });
+    }, 30000);
+
+    return () => clearInterval(alertsInterval);
+  }, [loadSupervisorAlerts]);
+
   const loadDashboardData = async () => {
     try {
       // CORREÇÃO: Usa o endpoint correto para buscar os KPIs.
@@ -549,6 +675,12 @@ export const SupervisorDashboard = () => {
           });
 
           setTodayDeliveries(mapped);
+          setStats(prev => ({
+            ...prev,
+            totalEntregas: mapped.length,
+            entregasRealizadas: mapped.filter(d => d.statusLabel === 'Realizada').length,
+            entregasPendentes: mapped.filter(d => d.statusLabel === 'Em andamento').length,
+          }));
         }
       }
     } catch (error) {
@@ -711,6 +843,9 @@ export const SupervisorDashboard = () => {
                           <p className="text-xs text-muted-foreground">
                             {formatRelativeTime(driver.lastUpdate)} - {formattedSpeed} km/h
                           </p>
+                          {driver.vehicleLabel && (
+                            <p className="text-xs text-muted-foreground">Veiculo: {driver.vehicleLabel}</p>
+                          )}
                         </div>
                         <span
                           className={`inline-flex items-center rounded-md px-2 py-1 text-xs font-semibold ${statusStyles.badge}`}
@@ -737,34 +872,31 @@ export const SupervisorDashboard = () => {
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="space-y-3">
-              <div className="flex items-center gap-3 p-3 rounded-lg bg-warning/5 border border-warning/20">
-                <AlertTriangle className="h-5 w-5 text-warning" />
-                <div className="flex-1">
-                  <p className="font-medium">Atraso na Rota 004</p>
-                  <p className="text-sm text-muted-foreground">Pedro Costa está 30 min atrasado na programação</p>
-                </div>
-                <span className="text-xs text-muted-foreground">há 15 min</span>
+            {alertsLoading ? (
+              <div className="flex h-24 items-center justify-center">
+                <div className="h-6 w-6 animate-spin rounded-full border-2 border-primary/30 border-t-primary" />
               </div>
-              
-              <div className="flex items-center gap-3 p-3 rounded-lg bg-danger/5 border border-danger/20">
-                <AlertTriangle className="h-5 w-5 text-danger" />
-                <div className="flex-1">
-                  <p className="font-medium">Entrega com problema</p>
-                  <p className="text-sm text-muted-foreground">NF 98765 - Destinatário ausente</p>
-                </div>
-                <span className="text-xs text-muted-foreground">há 32 min</span>
+            ) : combinedAlerts.length ? (
+              <div className="space-y-3">
+                {combinedAlerts.map((alert) => {
+                  const style = ALERT_STYLE[alert.severity];
+                  const Icon = style.icon;
+                  return (
+                    <div key={alert.id} className={`flex items-center gap-3 p-3 rounded-lg ${style.container}`}>
+                      <Icon className={`h-5 w-5 ${style.iconClass}`} />
+                      <div className="flex-1">
+                        <p className="font-medium">{alert.title}</p>
+                        <p className="text-sm text-muted-foreground">{alert.description}</p>
+                      </div>
+                      <span className="text-xs text-muted-foreground">{formatRelativeTime(alert.timestamp)}</span>
+                    </div>
+                  );
+                })}
               </div>
-              
-              <div className="flex items-center gap-3 p-3 rounded-lg bg-primary/5 border border-primary/20">
-                <CheckCircle className="h-5 w-5 text-primary" />
-                <div className="flex-1">
-                  <p className="font-medium">Meta diária atingida</p>
-                  <p className="text-sm text-muted-foreground">85% das entregas já foram concluídas</p>
-                </div>
-                <span className="text-xs text-muted-foreground">há 1h</span>
-              </div>
-            </div>
+            ) : (
+              <p className="text-sm text-muted-foreground">Sem alertas no momento.</p>
+            )}
+          </CardContent>
           </CardContent>
         </Card>
       </div>
