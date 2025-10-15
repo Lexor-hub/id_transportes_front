@@ -129,6 +129,110 @@ export const DriverDashboard = () => {
         [vehicles, activeVehicleId]
     );
 
+    const currencyFormatter = useMemo(
+        () => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }),
+        []
+    );
+
+    const formatCurrencyValue = useCallback(
+        (value?: string | number | null) => {
+            if (value === undefined || value === null) return '';
+            if (typeof value === 'number' && Number.isFinite(value)) {
+                return currencyFormatter.format(value);
+            }
+            const direct = Number(value);
+            if (Number.isFinite(direct)) {
+                return currencyFormatter.format(direct);
+            }
+            const normalized = String(value).replace(/\./g, '').replace(',', '.');
+            const parsed = Number(normalized);
+            return Number.isFinite(parsed) ? currencyFormatter.format(parsed) : String(value);
+        },
+        [currencyFormatter]
+    );
+
+    const formatDateValue = useCallback((value?: string | null) => {
+        if (!value) return '';
+        const parsed = new Date(value);
+        if (Number.isNaN(parsed.getTime())) {
+            return String(value);
+        }
+        return parsed.toLocaleDateString('pt-BR');
+    }, []);
+
+    const summaryFields = useMemo(() => {
+        if (!deliveryDetails) return [];
+        const nfData = deliveryDetails.nf_data ?? {};
+        const valores = deliveryDetails.valores ?? {};
+        const summary = deliveryDetails.summary ?? {};
+
+        const fields = [
+            {
+                label: 'Número da NF',
+                value:
+                    nfData.numero ??
+                    deliveryDetails.nf_number ??
+                    deliveryDetails.nfNumber ??
+                    summary.nf_number ??
+                    summary.nfNumber,
+            },
+            {
+                label: 'Chave da NF',
+                value:
+                    nfData.chave ??
+                    nfData.chave_acesso ??
+                    deliveryDetails.nfe_key ??
+                    summary.nfe_key,
+            },
+            {
+                label: 'Nome do cliente',
+                value:
+                    deliveryDetails.destinatario?.razao_social ??
+                    deliveryDetails.client_name ??
+                    deliveryDetails.clientName ??
+                    summary.client_name ??
+                    summary.clientName,
+            },
+            {
+                label: 'Data de emissão',
+                value: formatDateValue(
+                    nfData.data_emissao ??
+                    deliveryDetails.emission_date ??
+                    summary.emission_date ??
+                    summary.issueDate
+                ),
+            },
+            {
+                label: 'Data de saída',
+                value: formatDateValue(
+                    nfData.data_saida ??
+                    deliveryDetails.delivery_date_expected ??
+                    summary.departure_date ??
+                    summary.dueDate
+                ),
+            },
+            {
+                label: 'Valor total da entrega',
+                value: formatCurrencyValue(
+                    valores.valor_total_produtos ??
+                    summary.merchandise_value ??
+                    deliveryDetails.merchandise_value
+                ),
+            },
+            {
+                label: 'Valor total da nota',
+                value: formatCurrencyValue(
+                    valores.valor_total_nota ??
+                    summary.invoice_total_value
+                ),
+            },
+        ];
+
+        return fields.filter(
+            (field) => field.value && String(field.value).trim().length > 0
+        );
+    }, [deliveryDetails, formatCurrencyValue, formatDateValue]);
+
 
 
     useEffect(() => {
@@ -150,7 +254,7 @@ export const DriverDashboard = () => {
         const fetchVehicles = async () => {
             setVehiclesLoading(true);
             try {
-                const response = await apiService.getVehicles({ status: 'active' });
+                const response = await apiService.getVehicles();
                 if (!response.success || !Array.isArray(response.data)) {
                     if (!ignore) {
                         setVehicles([]);
@@ -328,7 +432,7 @@ export const DriverDashboard = () => {
     const startLocationTracking = useCallback(() => {
         if (typeof navigator === 'undefined' || !navigator.geolocation) {
             toast({
-                title: 'Geolocalizaçãoo indisponível',
+                title: 'Geolocalizaçãoo indisponivel',
                 description: 'O dispositivo não oferece suporte á localização ou a permissão está bloqueada.',
                 variant: 'destructive'
             });
@@ -1123,129 +1227,23 @@ const handleDisableLocation = () => {
 
                                 {deliveryDetails && (
                                     <div className="space-y-4 text-sm">
-                                        {/* Seção de Status e Atribuição */}
                                         <div className="p-3 bg-gray-50 rounded-md border">
-                                            <h3 className="font-semibold text-gray-800 border-b pb-2 mb-2">Dados Gerais da Nota</h3>
-                                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-2">
-                                                <div className="flex flex-col"><span className="font-medium text-gray-500 text-xs">Status</span> <Badge className="w-fit mt-1">{deliveryDetails.status}</Badge></div>
-                                                <div className="flex flex-col"><span className="font-medium text-gray-500 text-xs">Motorista</span> <span>{deliveryDetails.driver_name || 'N/A'}</span></div>
-                                                <div className="flex flex-col"><span className="font-medium text-gray-500 text-xs">Data Emissão</span> <span>{deliveryDetails.nf_data?.data_emissao ? new Date(deliveryDetails.nf_data.data_emissao).toLocaleDateString('pt-BR') : (deliveryDetails.emission_date ? new Date(deliveryDetails.emission_date).toLocaleDateString('pt-BR') : 'N/A')}</span></div>
-                                                <div className="flex flex-col"><span className="font-medium text-gray-500 text-xs">Data Saída</span> <span>{deliveryDetails.nf_data?.data_saida ? new Date(deliveryDetails.nf_data.data_saida).toLocaleDateString('pt-BR') : 'N/A'}</span></div>
-                                                <div className="flex flex-col sm:col-span-2"><span className="font-medium text-gray-500 text-xs">Chave de Acesso</span> <code className="text-xs break-all">{deliveryDetails.nf_data?.chave_acesso || deliveryDetails.nf_data?.chave || 'N/A'}</code></div>
-                                                <div className="flex flex-col sm:col-span-2"><span className="font-medium text-gray-500 text-xs">Protocolo</span> <code className="text-xs">{deliveryDetails.nf_data?.protocolo_autorizacao || 'N/A'}</code></div>
-                                            </div>
-                                        </div>
-
-                                        {/* Seção do Destinatário */}
-                                        <div className="p-3 bg-gray-50 rounded-md border">
-                                            <h3 className="font-semibold text-gray-800 border-b pb-2 mb-2">Destinatário</h3>
-                                            <div className="space-y-1">
-                                                <p className="font-bold">{deliveryDetails.destinatario?.razao_social || deliveryDetails.clientName}</p>
-                                                <p className="text-gray-600">{deliveryDetails.destinatario?.endereco || deliveryDetails.deliveryAddress}</p>
-                                                <p className="text-gray-600">{deliveryDetails.destinatario?.municipio} - {deliveryDetails.destinatario?.uf}, CEP: {deliveryDetails.destinatario?.cep}</p>
-                                                <p className="text-gray-600">CNPJ: {deliveryDetails.destinatario?.cnpj_cpf || deliveryDetails.clientCnpj}</p>
-                                            </div>
-                                        </div>
-
-                                        {/* Seção do Remetente */}
-                                        <div className="p-3 bg-gray-50 rounded-md border">
-                                            <h3 className="font-semibold text-gray-800 border-b pb-2 mb-2">Remetente</h3>
-                                            <div className="space-y-1">
-                                                <p className="font-bold">{deliveryDetails.remetente?.razao_social || 'N/A'}</p>
-                                                <p className="text-gray-600">CNPJ: {deliveryDetails.remetente?.cnpj_cpf || 'N/A'}</p>
-                                            </div>
-                                        </div>
-
-                                        {/* Seção de Valores */}
-                                        <div className="p-3 bg-gray-50 rounded-md border">
-                                            <h3 className="font-semibold text-gray-800 border-b pb-2 mb-2">Valores</h3>
-                                            <div className="grid grid-cols-2 sm:grid-cols-3 gap-x-4 gap-y-2">
-                                                <div className="flex flex-col"><span className="font-medium text-gray-500 text-xs">Total da Nota</span> <span>R$ {Number(deliveryDetails.valores?.valor_total_nota || deliveryDetails.merchandise_value || 0).toFixed(2)}</span></div>
-                                                <div className="flex flex-col"><span className="font-medium text-gray-500 text-xs">Total Produtos</span> <span>R$ {Number(deliveryDetails.valores?.valor_total_produtos || 0).toFixed(2)}</span></div>
-                                                <div className="flex flex-col"><span className="font-medium text-gray-500 text-xs">Frete</span> <span>R$ {Number(deliveryDetails.valores?.valor_frete || 0).toFixed(2)}</span></div>
-                                            </div>
-                                        </div>
-
-                                        {/* Seção de Impostos */}
-                                        <div className="p-3 bg-gray-50 rounded-md border">
-                                            <h3 className="font-semibold text-gray-800 border-b pb-2 mb-2">Impostos</h3>
-                                            <div className="grid grid-cols-2 sm:grid-cols-3 gap-x-4 gap-y-2">
-                                                <div className="flex flex-col"><span className="font-medium text-gray-500 text-xs">Base Cálculo ICMS</span> <span>R$ {Number(deliveryDetails.impostos?.base_calculo_icms || 0).toFixed(2)}</span></div>
-                                                <div className="flex flex-col"><span className="font-medium text-gray-500 text-xs">Valor ICMS</span> <span>R$ {Number(deliveryDetails.impostos?.valor_icms || 0).toFixed(2)}</span></div>
-                                                <div className="flex flex-col"><span className="font-medium text-gray-500 text-xs">Valor IPI</span> <span>R$ {Number(deliveryDetails.impostos?.valor_ipi || 0).toFixed(2)}</span></div>
-                                                <div className="flex flex-col"><span className="font-medium text-gray-500 text-xs">Total Tributos</span> <span>R$ {Number(deliveryDetails.impostos?.valor_total_tributos || 0).toFixed(2)}</span></div>
-                                            </div>
-                                        </div>
-
-                                        {/* Seção de Volumes */}
-                                        <div className="p-3 bg-gray-50 rounded-md border">
-                                            <h3 className="font-semibold text-gray-800 border-b pb-2 mb-2">Volumes</h3>
-                                            <div className="grid grid-cols-2 sm:grid-cols-3 gap-x-4 gap-y-2">
-                                                <div className="flex flex-col"><span className="font-medium text-gray-500 text-xs">Quantidade</span> <span>{deliveryDetails.volumes?.quantidade || deliveryDetails.delivery_volume || 'N/A'}</span></div>
-                                                <div className="flex flex-col"><span className="font-medium text-gray-500 text-xs">Espécie</span> <span>{deliveryDetails.volumes?.especie || 'N/A'}</span></div>
-                                                <div className="flex flex-col"><span className="font-medium text-gray-500 text-xs">Peso Bruto</span> <span>{deliveryDetails.volumes?.peso_bruto || 'N/A'}</span></div>
-                                                <div className="flex flex-col"><span className="font-medium text-gray-500 text-xs">Peso Líquido</span> <span>{deliveryDetails.volumes?.peso_liquido || 'N/A'}</span></div>
-                                            </div>
-                                        </div>
-
-                                        {/* Seção de Itens da Nota */}
-                                        {deliveryDetails.itens_de_linha && deliveryDetails.itens_de_linha.length > 0 && (
-                                            <div className="p-3 bg-gray-50 rounded-md border">
-                                                <h3 className="font-semibold text-gray-800 border-b pb-2 mb-2">Itens da Nota</h3>
-                                                <ul className="space-y-2">
-                                                    {deliveryDetails.itens_de_linha.map((item: any, index: number) => (
-                                                        <li key={index}>
-                                                            <div className="flex justify-between">
-                                                                <span className="pr-2">{item.quantity || 'N/A'}x {item.description || 'Item sem descrição'}</span>
-                                                                <span className="font-medium">R$ {Number(item.total_price || 0).toFixed(2)}</span>
-                                                            </div>
-                                                        </li>
+                                            <h3 className="font-semibold text-gray-800 border-b pb-2 mb-2">Dados informados</h3>
+                                            {summaryFields.length === 0 ? (
+                                                <p className="text-sm text-muted-foreground">Nenhuma informacao disponivel para esta entrega.</p>
+                                            ) : (
+                                                <div className="grid grid-cols-1 gap-3">
+                                                    {summaryFields.map((field) => (
+                                                        <div key={field.label} className="flex flex-col">
+                                                            <span className="text-xs font-medium uppercase tracking-wide text-muted-foreground">{field.label}</span>
+                                                            <span className="text-sm text-gray-900">{field.value}</span>
+                                                        </div>
                                                     ))}
-                                                </ul>
-                                            </div>
-                                        )}
-
-                                        {/* Seção de Faturas (Duplicatas) */}
-                                        {deliveryDetails.duplicatas && deliveryDetails.duplicatas.length > 0 && (
-                                            <div className="p-3 bg-gray-50 rounded-md border">
-                                                <h3 className="font-semibold text-gray-800 border-b pb-2 mb-2">Faturas</h3>
-                                                <ul className="space-y-2">
-                                                    {deliveryDetails.duplicatas.map((dup: any, index: number) => (
-                                                        <li key={index}>
-                                                            <div className="flex justify-between">
-                                                                <span>Parcela {dup.installment_number || String(index + 1).padStart(3, '0')}</span>
-                                                                <div className="text-right">
-                                                                    <span className="font-medium">R$ {Number(dup.amount || 0).toFixed(2)}</span>
-                                                                    <span className="ml-2 text-gray-500 text-xs">Venc: {dup.due_date ? new Date(dup.due_date).toLocaleDateString('pt-BR') : 'N/A'}</span>
-                                                                </div>
-                                                            </div>
-                                                        </li>
-                                                    ))}
-                                                </ul>
-                                            </div>
-                                        )}
-
-                                        {/* Seção de Observações */}
-                                        <div className="p-3 bg-gray-50 rounded-md border">
-                                            <h3 className="font-semibold text-gray-800 border-b pb-2 mb-2">Informações Complementares</h3>
-                                            <p className="text-gray-600 whitespace-pre-wrap">{deliveryDetails.informacoes_complementares || 'Nenhuma.'}</p>
+                                                </div>
+                                            )}
                                         </div>
-                                        
-                                        {/* Seção do Canhoto Anexado */}
-                                        {deliveryDetails.receipt_image_url && (
-                                            <div className="p-3 bg-gray-50 rounded-md border">
-                                                <a href={deliveryDetails.receipt_image_url} target="_blank" rel="noopener noreferrer">
-                                                    <img src={deliveryDetails.receipt_image_url} alt="Prévia do canhoto" className="rounded-md w-full h-auto object-contain cursor-pointer hover:opacity-80 transition-opacity" />
-                                                </a>
-                                                <p className="text-xs text-center text-gray-500 mt-2">Clique na imagem para ampliar</p>
-                                            </div>
-                                        )}
-
-                                        {/* Aqui você pode adicionar mais campos como created_at, etc. */}
-                                        
                                     </div>
                                 )}
-                                
                                 <DialogFooter>
                                     <Button variant="secondary" onClick={() => setShowDetailsModal(false)}>Fechar</Button>
                                 </DialogFooter>
