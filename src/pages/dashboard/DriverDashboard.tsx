@@ -1,4 +1,4 @@
-﻿﻿import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
+﻿import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -545,13 +545,15 @@ export const DriverDashboard = () => {
 
             const deliveriesData = (response.data as unknown as ApiDelivery[])
                 .map((item) => {
-                    const rawDriverId = item.driver_id ?? (item as Record<string, unknown>)['driverId'] ?? (item as Record<string, unknown>)['driver_user_id'] ?? null;
+                    // CORREÇÃO: Simplifica o acesso a propriedades que podem não estar na interface.
+                    const anyItem = item as any;
+                    const rawDriverId = anyItem.driver_id ?? anyItem.driverId ?? anyItem.driver_user_id ?? null;
                     const driverIdForDelivery = rawDriverId !== undefined && rawDriverId !== null ? String(rawDriverId) : undefined;
 
                     const createdAtRaw = typeof item.created_at === 'string' ? item.created_at : '';
-                    const emissionDateRaw = typeof (item as Record<string, unknown>)['emission_date'] === 'string' ? (item as Record<string, unknown>)['emission_date'] as string : '';
-                    const expectedDateRaw = typeof (item as Record<string, unknown>)['delivery_date_expected'] === 'string' ? (item as Record<string, unknown>)['delivery_date_expected'] as string : '';
-                    const referenceDate = createdAtRaw || emissionDateRaw || expectedDateRaw || '';
+                    const emissionDateRaw = typeof anyItem.emission_date === 'string' ? anyItem.emission_date : '';
+                    const expectedDateRaw = typeof anyItem.delivery_date_expected === 'string' ? anyItem.delivery_date_expected : '';
+                    const referenceDate = createdAtRaw || expectedDateRaw || emissionDateRaw || '';
 
                     return {
                         id: item.id.toString(),
@@ -922,7 +924,9 @@ const handleDisableLocation = () => {
             setDeletingDeliveryId(deliveryToDelete.id);
             const response = await apiService.deleteDelivery(deliveryToDelete.id);
             if (!response.success) {
-                throw new Error(response.error || 'Não foi possível excluir a entrega.');
+                // CORREÇÃO: Acessa a propriedade 'error' de forma segura, tratando o tipo da resposta.
+                const errorMessage = (response as { error?: string }).error || 'Não foi possível excluir a entrega.';
+                throw new Error(errorMessage);
             }
 
             toast({
