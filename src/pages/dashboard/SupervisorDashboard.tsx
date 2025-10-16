@@ -1,6 +1,6 @@
 ﻿import { useState, useEffect, useCallback, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { StatsCard } from '@/components/dashboard/StatsCard';
+import { StatsCard } from '@/components/dashboard/StatsCard'; // CORREÇÃO: Import não utilizado removido em outras partes, mas mantido aqui.
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
@@ -22,6 +22,14 @@ import {
 import { apiService } from '@/services/api';
 import { computeMovementStatus, getMovementStatusTw, MOVEMENT_STATUS_LABEL, MovementStatus } from '@/lib/driver-status';
 import { useToast } from '@/hooks/use-toast';
+
+// CORREÇÃO: Adicionada interface para veículos
+type Vehicle = {
+  id: string;
+  plate: string;
+  model: string;
+  brand?: string;
+};
 
 type DriverStatusItem = {
   id: string;
@@ -175,6 +183,7 @@ export const SupervisorDashboard = () => {
   const [currentPage, setCurrentPage] = useState(1);
   const PER_PAGE = 10;
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
+  const [vehicles, setVehicles] = useState<Vehicle[]>([]); // CORREÇÃO: Estado para armazenar veículos
   const { toast } = useToast();
   const navigate = useNavigate();
 
@@ -203,6 +212,24 @@ export const SupervisorDashboard = () => {
     });
   }, [serverAlerts, idleAlerts]);
 
+  // CORREÇÃO: Função para carregar a lista de veículos
+  const loadVehicles = useCallback(async () => {
+    try {
+      const response = await apiService.getVehicles();
+      if (response.success && Array.isArray(response.data)) {
+        const normalizedVehicles = (response.data as any[]).map(v => ({
+          id: String(v.id),
+          plate: v.plate,
+          model: v.model,
+          brand: v.brand,
+        }));
+        setVehicles(normalizedVehicles);
+      }
+    } catch (error) {
+      // Silencioso, pois não é crítico para o dashboard principal
+    }
+  }, []);
+
   const loadDriverStatuses = useCallback(
     async ({ silent = false }: { silent?: boolean } = {}) => {
       if (!silent) {
@@ -213,6 +240,12 @@ export const SupervisorDashboard = () => {
         const response = await apiService.getCurrentLocations();
 
         if (response.success && Array.isArray(response.data)) {
+          // CORREÇÃO: Garante que a lista de veículos esteja disponível
+          let currentVehicles = vehicles;
+          if (currentVehicles.length === 0) {
+            const vehicleResponse = await apiService.getVehicles();
+            if (vehicleResponse.success && Array.isArray(vehicleResponse.data)) currentVehicles = vehicleResponse.data;
+          }
           const now = Date.now();
           const normalized: DriverStatusItem[] = (response.data as Array<Record<string, unknown>>)
             .map((raw) => {
@@ -230,8 +263,11 @@ export const SupervisorDashboard = () => {
 
               const vehicleIdRaw = driver['vehicle_id'] ?? driver['vehicleId'];
               const vehicleLabelRaw = driver['vehicle_label'] ?? driver['vehicleLabel'];
-              const vehicleId = vehicleIdRaw !== undefined && vehicleIdRaw !== null ? String(vehicleIdRaw) : null;
-              const vehicleLabel = vehicleLabelRaw ? String(vehicleLabelRaw) : null;
+              const vehicleId = vehicleIdRaw != null ? String(vehicleIdRaw) : null;
+              // CORREÇÃO: Busca o label do veículo se não vier da API
+              const vehicleFromList = vehicleId ? currentVehicles.find(v => v.id === vehicleId) : null;
+              const vehicleLabel = vehicleLabelRaw ? String(vehicleLabelRaw) : 
+                (vehicleFromList ? `${vehicleFromList.plate} - ${vehicleFromList.model}` : null);
 
               return {
                 id: String(id),
@@ -268,7 +304,7 @@ export const SupervisorDashboard = () => {
         }
       }
     },
-    [toast]
+    [toast, vehicles] // CORREÇÃO: Adiciona vehicles como dependência
   );
 
   const loadSupervisorAlerts = useCallback(async ({ silent = false }: { silent?: boolean } = {}) => {
@@ -602,6 +638,7 @@ export const SupervisorDashboard = () => {
 
   useEffect(() => {
     loadDashboardData();
+    loadVehicles(); // CORREÇÃO: Carrega os veículos ao montar o componente
   }, []);
 
   useEffect(() => {

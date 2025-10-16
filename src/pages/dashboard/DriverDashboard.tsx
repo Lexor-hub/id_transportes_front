@@ -569,14 +569,8 @@ export const DriverDashboard = () => {
                         return dateA - dateB;
                     });
 
-                // Filtra para mostrar apenas as entregas do dia atual.
-                const todayIso = new Date().toISOString().slice(0, 10);
-                const filteredDeliveries = deliveriesData.filter((delivery) => {
-                    const createdAtIso = delivery.createdAt ? delivery.createdAt.slice(0, 10) : null;
-                    return createdAtIso === todayIso;
-                });
-
-                setDeliveries(filteredDeliveries as Delivery[]);
+                // CORREÇÃO: Remove o filtro de data do frontend. O backend já retorna a lista correta de entregas (do dia + pendentes).
+                setDeliveries(deliveriesData as Delivery[]);
 
             } else {
                 setDeliveries([]); 
