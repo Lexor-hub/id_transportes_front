@@ -313,10 +313,28 @@ export const SupervisorDashboard = () => {
               const vehicleIdRaw = driver['vehicle_id'] ?? driver['vehicleId'];
               const vehicleLabelRaw = driver['vehicle_label'] ?? driver['vehicleLabel'];
               const vehicleId = vehicleIdRaw != null ? String(vehicleIdRaw) : null;
+              const normalizedVehicleLabelRaw =
+                vehicleLabelRaw != null ? String(vehicleLabelRaw) : null;
               // CORREÇÃO: Busca o label do veículo se não vier da API
-              const vehicleFromList = vehicleId ? currentVehicles.find(v => v.id === vehicleId) : null;
-              const vehicleLabel = vehicleLabelRaw ? String(vehicleLabelRaw) : 
-                (vehicleFromList ? `${vehicleFromList.plate} - ${vehicleFromList.model}` : null);
+              let vehicleFromList: Vehicle | undefined;
+
+              if (vehicleId) {
+                vehicleFromList = currentVehicles.find((v) => String(v.id) === vehicleId);
+              }
+
+              if (!vehicleFromList && normalizedVehicleLabelRaw) {
+                const normalizedPlate = normalizedVehicleLabelRaw.toLowerCase();
+                vehicleFromList = currentVehicles.find(
+                  (v) => String(v.plate ?? '').toLowerCase() === normalizedPlate
+                );
+              }
+
+              const vehiclePlateLabel =
+                vehicleFromList?.plate != null
+                  ? String(vehicleFromList.plate).toUpperCase()
+                  : null;
+
+              const vehicleLabel = vehiclePlateLabel ?? normalizedVehicleLabelRaw;
 
               return {
                 id: String(id),
