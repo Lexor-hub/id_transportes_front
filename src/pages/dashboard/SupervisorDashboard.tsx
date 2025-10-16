@@ -279,6 +279,21 @@ export const SupervisorDashboard = () => {
     });
   }, [serverAlerts, idleAlerts]);
 
+  const formatDriverReportVehicle = useCallback((vehicle: DriverReportVehicle) => {
+    if (!vehicle) return 'Veiculo nao identificado';
+
+    const parts: string[] = [];
+    if (vehicle.plate) parts.push(String(vehicle.plate).toUpperCase());
+    if (vehicle.model) parts.push(String(vehicle.model));
+    if (vehicle.brand) parts.push(String(vehicle.brand));
+
+    if (parts.length > 0) {
+      return parts.join(' - ');
+    }
+
+    return vehicle.label || 'Veiculo nao identificado';
+  }, []);
+
   const loadDriverStatuses = useCallback(
     async ({ silent = false }: { silent?: boolean } = {}) => {
       if (!silent) {
@@ -1361,10 +1376,14 @@ export const SupervisorDashboard = () => {
                           ) : null}
                         </td>
                         <td className="py-2 pr-4">
-                          {driver.vehiclesToday.length ? driver.vehiclesToday.map(v => v.label).join(', ') : 'Sem registro'}
+                          {driver.vehiclesToday.length
+                            ? driver.vehiclesToday.map(formatDriverReportVehicle).join(', ')
+                            : 'Sem registro'}
                         </td>
                         <td className="py-2 pr-4">
-                          {driver.vehiclesMonth.length ? driver.vehiclesMonth.map(v => v.label).join(', ') : 'Sem registro'}
+                          {driver.vehiclesMonth.length
+                            ? driver.vehiclesMonth.map(formatDriverReportVehicle).join(', ')
+                            : 'Sem registro'}
                         </td>
                         <td className="py-2 pr-4 font-semibold">{driver.deliveriesToday}</td>
                         <td className="py-2 pr-4">{driver.deliveriesMonth}</td>
