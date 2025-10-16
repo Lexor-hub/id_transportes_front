@@ -527,73 +527,91 @@ export const DriverDashboard = () => {
     }, [toast]);
 
     const loadTodayDeliveries = useCallback(async () => {
-        setLoading(true);
+    setLoading(true);
 
-        const driverIdToFetch = resolveDriverId();
-        if (!driverIdToFetch) {
-            setLoading(false);
-            return;
-        }
+    const driverIdToFetch = resolveDriverId();
+    if (!driverIdToFetch) {
+        setLoading(false);
+        return;
+    }
 
-        try {
-            const response = await apiService.getDeliveries({ 
-                 driver_id: driverIdToFetch 
-            });
+    try {
+        const response = await apiService.getDeliveries({
+            driver_id: driverIdToFetch
+        });
 
-            if (response.success && Array.isArray(response.data) && response.data.length > 0) {
-                const deliveriesData = (response.data as unknown as ApiDelivery[])
-                    .map((item) => ({
+        if (response.success && Array.isArray(response.data)) {
+            const todayIso = new Date().toISOString().slice(0, 10);
+
+            const deliveriesData = (response.data as unknown as ApiDelivery[])
+                .map((item) => {
+                    const rawDriverId = item.driver_id ?? (item as Record<string, unknown>)['driverId'] ?? (item as Record<string, unknown>)['driver_user_id'] ?? null;
+                    const driverIdForDelivery = rawDriverId !== undefined && rawDriverId !== null ? String(rawDriverId) : undefined;
+
+                    const createdAtRaw = typeof item.created_at === 'string' ? item.created_at : '';
+                    const emissionDateRaw = typeof (item as Record<string, unknown>)['emission_date'] === 'string' ? (item as Record<string, unknown>)['emission_date'] as string : '';
+                    const expectedDateRaw = typeof (item as Record<string, unknown>)['delivery_date_expected'] === 'string' ? (item as Record<string, unknown>)['delivery_date_expected'] as string : '';
+                    const referenceDate = createdAtRaw || emissionDateRaw || expectedDateRaw || '';
+
+                    return {
                         id: item.id.toString(),
                         nfNumber: item.nf_number,
                         client: (item.client_name || item.client_name_extracted || 'Cliente Desconhecido').trim(),
-                        address: item.delivery_address || 'Endereço Indefinido',
+                        address: item.delivery_address || 'Endereco Nao Informado',
                         volume: item.delivery_volume ?? 1,
                         value: Number(item.merchandise_value || 0),
                         status: item.has_receipt
-                            ? 'REALIZADA' 
+                            ? 'REALIZADA'
                             : item.status === 'DELIVERED'
-                            ? 'REALIZADA' 
+                            ? 'REALIZADA'
                             : item.status === 'IN_TRANSIT'
-                            ? 'EM_ANDAMENTO' 
+                            ? 'EM_ANDAMENTO'
                             : item.status === 'PENDING'
-                            ? 'PENDENTE' 
+                            ? 'PENDENTE'
                             : 'PROBLEMA',
                         hasReceipt: Boolean(item.has_receipt),
-                        createdAt: item.created_at,
+                        createdAt: referenceDate,
                         receiptImageUrl: item.receipt_image_url || item.image_url || null,
-                        driverId: item.driver_id !== undefined && item.driver_id !== null ? item.driver_id.toString() : undefined
-                    }))
-                    .sort((a, b) => {
-                        const dateA = a.createdAt ? new Date(a.createdAt).getTime() : 0;
-                        const dateB = b.createdAt ? new Date(b.createdAt).getTime() : 0;
-                        return dateA - dateB;
-                    });
+                        driverId: driverIdForDelivery,
+                    } as Delivery;
+                })
+                .filter((delivery) => {
+                    if (!delivery.driverId || delivery.driverId !== driverIdToFetch) {
+                        return false;
+                    }
+                    if (!delivery.createdAt || delivery.createdAt.length < 10) {
+                        return false;
+                    }
+                    return delivery.createdAt.slice(0, 10) === todayIso;
+                })
+                .sort((a, b) => {
+                    const dateA = a.createdAt ? new Date(a.createdAt).getTime() : 0;
+                    const dateB = b.createdAt ? new Date(b.createdAt).getTime() : 0;
+                    return dateA - dateB;
+                });
 
-                // CORREÇÃO: Remove o filtro de data do frontend. O backend já retorna a lista correta de entregas (do dia + pendentes).
-                setDeliveries(deliveriesData as Delivery[]);
-
-            } else {
-                setDeliveries([]); 
-                if (!response.success) {
-                    toast({
-                        title: 'Erro ao carregar entregas',
-                        description: (response as any).error || 'Nenhuma entrega encontrada para o dia.',
-                        variant: 'destructive'
-                    });
-                }
-            }
-
-        } catch (error) {
+            setDeliveries(deliveriesData as Delivery[]);
+        } else {
             setDeliveries([]);
-            toast({
-                title: 'Erro de Conexão',
-                description: 'Não foi possível buscar as entregas. Verifique se o serviço está rodando.',
-                variant: 'destructive'
-            });
-        } finally {
-            setLoading(false);
+            if (!response.success && (response as any).error) {
+                toast({
+                    title: 'Erro ao carregar entregas',
+                    description: (response as any).error || 'Nao foi possivel carregar as entregas do dia.',
+                    variant: 'destructive'
+                });
+            }
         }
-    }, [resolveDriverId, toast]);
+    } catch (error) {
+        setDeliveries([]);
+        toast({
+            title: 'Erro ao carregar entregas',
+            description: 'Nao foi possivel carregar as entregas do dia.',
+            variant: 'destructive'
+        });
+    } finally {
+        setLoading(false);
+    }
+}, [resolveDriverId, toast]);
 
     useEffect(() => {
         const driverId = resolveDriverId();
