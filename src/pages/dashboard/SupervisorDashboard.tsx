@@ -695,7 +695,6 @@ export const SupervisorDashboard = () => {
         setDriverReportData(null);
         toast({
           title: 'Erro ao carregar relatorio',
-          description: response.error || 'Nao foi possivel gerar o relatorio de motoristas.',
           variant: 'destructive',
         });
       }
