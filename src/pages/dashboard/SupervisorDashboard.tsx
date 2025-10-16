@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { StatsCard } from '@/components/dashboard/StatsCard';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { DriverForm } from '@/components/forms/DriverForm';
@@ -19,7 +20,9 @@ import {
   ClipboardList,
   RefreshCw,
   Award,
-  Download
+  Download,
+  ChevronLeft,
+  ChevronRight
 } from 'lucide-react';
 import { apiService } from '@/services/api';
 import { computeMovementStatus, getMovementStatusTw, MOVEMENT_STATUS_LABEL, MovementStatus } from '@/lib/driver-status';
@@ -126,6 +129,9 @@ const ALERT_STYLE = {
   },
 } as const;
 
+const DRIVER_REPORT_PAGE_SIZE = 10;
+const EMPTY_DRIVER_REPORT_LIST: DriverReportEntry[] = [];
+
 const formatDeliveryStatus = (status?: string, hasReceipt?: boolean) => {
   const normalized = (status || '').toUpperCase();
   if (hasReceipt || normalized === 'DELIVERED' || normalized === 'ENTREGUE') {
@@ -218,6 +224,8 @@ export const SupervisorDashboard = () => {
   const [showDriverReportModal, setShowDriverReportModal] = useState(false);
   const [driverReportData, setDriverReportData] = useState<DriverPerformanceReport | null>(null);
   const [driverReportLoading, setDriverReportLoading] = useState(false);
+  const [driverReportSearchTerm, setDriverReportSearchTerm] = useState('');
+  const [driverReportPage, setDriverReportPage] = useState(1);
 
   const [alertsLoading, setAlertsLoading] = useState(false);
   // filters and pagination for receipts modal
@@ -293,6 +301,59 @@ export const SupervisorDashboard = () => {
 
     return vehicle.label || 'Veiculo nao identificado';
   }, []);
+
+  const driverReportDrivers = driverReportData?.drivers ?? EMPTY_DRIVER_REPORT_LIST;
+
+  useEffect(() => {
+    if (!showDriverReportModal) {
+      setDriverReportSearchTerm('');
+      setDriverReportPage(1);
+    }
+  }, [showDriverReportModal]);
+
+  useEffect(() => {
+    if (driverReportPage !== 1) {
+      setDriverReportPage(1);
+    }
+  }, [driverReportSearchTerm, driverReportDrivers]);
+
+  const driverReportFilteredDrivers = useMemo(() => {
+    if (!driverReportDrivers.length) return [];
+
+    const term = driverReportSearchTerm.trim().toLowerCase();
+    if (!term) return driverReportDrivers;
+
+    return driverReportDrivers.filter((driver) => {
+      const name = (driver.name ?? '').toLowerCase();
+      const username = (driver.username ?? '').toLowerCase();
+      return name.includes(term) || username.includes(term);
+    });
+  }, [driverReportDrivers, driverReportSearchTerm]);
+
+  const driverReportTotalPages = Math.max(
+    1,
+    Math.ceil(driverReportFilteredDrivers.length / DRIVER_REPORT_PAGE_SIZE)
+  );
+
+  useEffect(() => {
+    if (driverReportPage > driverReportTotalPages) {
+      setDriverReportPage(driverReportTotalPages);
+    }
+  }, [driverReportPage, driverReportTotalPages]);
+
+  const paginatedDrivers = useMemo(() => {
+    if (!driverReportFilteredDrivers.length) return [];
+    const start = (driverReportPage - 1) * DRIVER_REPORT_PAGE_SIZE;
+    return driverReportFilteredDrivers.slice(start, start + DRIVER_REPORT_PAGE_SIZE);
+  }, [driverReportFilteredDrivers, driverReportPage]);
+
+  const driverReportTotalFiltered = driverReportFilteredDrivers.length;
+  const driverReportRangeStart = driverReportTotalFiltered
+    ? (driverReportPage - 1) * DRIVER_REPORT_PAGE_SIZE + 1
+    : 0;
+  const driverReportRangeEnd = driverReportTotalFiltered
+    ? Math.min(driverReportRangeStart + DRIVER_REPORT_PAGE_SIZE - 1, driverReportTotalFiltered)
+    : 0;
 
   const loadDriverStatuses = useCallback(
     async ({ silent = false }: { silent?: boolean } = {}) => {
@@ -1350,50 +1411,165 @@ export const SupervisorDashboard = () => {
                   </div>
                 </div>
               ) : null}
-              <ScrollArea className="max-h-[60vh] w-full overflow-x-auto">
-                <table className="w-full min-w-[720px] text-left text-sm">
-                  <thead className="border-b">
-                    <tr className="text-muted-foreground">
-                      <th className="py-2 pr-4 font-medium">Motorista</th>
-                      <th className="py-2 pr-4 font-medium">Veiculos (hoje)</th>
-                      <th className="py-2 pr-4 font-medium">Veiculos (mes)</th>
-                      <th className="py-2 pr-4 font-medium">Entregas hoje</th>
-                      <th className="py-2 pr-4 font-medium">Entregas mes</th>
-                      <th className="py-2 pr-4 font-medium">Ocorrencias hoje</th>
-                      <th className="py-2 font-medium">Ocorrencias mes</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {driverReportData.drivers.map((driver) => (
-                      <tr key={driver.driverKey} className="border-b last:border-none">
-                        <td className="py-2 pr-4">
-                          <div className="flex items-center gap-2">
-                            <span className="font-medium">{driver.name}</span>
-                            {driver.isTopToday ? (<Award className="h-4 w-4 text-amber-500" />) : null}
+              <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+                <div className="w-full lg:max-w-sm">
+                  <div className="relative">
+                    <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                    <Input
+                      value={driverReportSearchTerm}
+                      onChange={(event) => setDriverReportSearchTerm(event.target.value)}
+                      placeholder="Pesquisar motorista..."
+                      aria-label="Pesquisar motorista"
+                      className="pl-9"
+                      disabled={driverReportLoading}
+                    />
+                  </div>
+                </div>
+                <div className="flex flex-col gap-1 text-sm text-muted-foreground lg:flex-row lg:items-center lg:gap-3">
+                  <span>
+                    {driverReportTotalFiltered}{' '}
+                    {driverReportTotalFiltered === 1 ? 'motorista encontrado' : 'motoristas encontrados'}
+                  </span>
+                  <span>
+                    Pagina {driverReportPage} de {driverReportTotalPages}
+                  </span>
+                </div>
+              </div>
+              {paginatedDrivers.length ? (
+                <>
+                  <div className="space-y-3 lg:hidden">
+                    {paginatedDrivers.map((driver) => {
+                      const vehiclesTodayLabel = driver.vehiclesToday.length
+                        ? driver.vehiclesToday.map(formatDriverReportVehicle).join(', ')
+                        : 'Sem registro';
+                      const vehiclesMonthLabel = driver.vehiclesMonth.length
+                        ? driver.vehiclesMonth.map(formatDriverReportVehicle).join(', ')
+                        : 'Sem registro';
+
+                      return (
+                        <div key={driver.driverKey} className="space-y-2 rounded-lg border p-3">
+                          <div className="flex items-start justify-between gap-2">
+                            <div>
+                              <p className="font-medium">{driver.name}</p>
+                              {driver.username ? (
+                                <p className="text-xs text-muted-foreground">@{driver.username}</p>
+                              ) : null}
+                            </div>
+                            {driver.isTopToday ? <Award className="h-4 w-4 text-amber-500" /> : null}
                           </div>
-                          {driver.username ? (
-                            <p className="text-xs text-muted-foreground">@{driver.username}</p>
-                          ) : null}
-                        </td>
-                        <td className="py-2 pr-4">
-                          {driver.vehiclesToday.length
-                            ? driver.vehiclesToday.map(formatDriverReportVehicle).join(', ')
-                            : 'Sem registro'}
-                        </td>
-                        <td className="py-2 pr-4">
-                          {driver.vehiclesMonth.length
-                            ? driver.vehiclesMonth.map(formatDriverReportVehicle).join(', ')
-                            : 'Sem registro'}
-                        </td>
-                        <td className="py-2 pr-4 font-semibold">{driver.deliveriesToday}</td>
-                        <td className="py-2 pr-4">{driver.deliveriesMonth}</td>
-                        <td className="py-2 pr-4">{driver.occurrencesToday}</td>
-                        <td className="py-2">{driver.occurrencesMonth}</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </ScrollArea>
+                          <div className="space-y-1 text-xs text-muted-foreground">
+                            <p>
+                              <span className="font-semibold text-foreground">Veiculos (hoje):</span>{' '}
+                              {vehiclesTodayLabel}
+                            </p>
+                            <p>
+                              <span className="font-semibold text-foreground">Veiculos (mes):</span>{' '}
+                              {vehiclesMonthLabel}
+                            </p>
+                            <p>
+                              <span className="font-semibold text-foreground">Entregas hoje:</span>{' '}
+                              {driver.deliveriesToday}
+                            </p>
+                            <p>
+                              <span className="font-semibold text-foreground">Entregas mes:</span>{' '}
+                              {driver.deliveriesMonth}
+                            </p>
+                            <p>
+                              <span className="font-semibold text-foreground">Ocorrencias hoje:</span>{' '}
+                              {driver.occurrencesToday}
+                            </p>
+                            <p>
+                              <span className="font-semibold text-foreground">Ocorrencias mes:</span>{' '}
+                              {driver.occurrencesMonth}
+                            </p>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                  <ScrollArea className="hidden max-h-[60vh] w-full overflow-x-auto lg:block">
+                    <table className="w-full min-w-[720px] text-left text-sm">
+                      <thead className="border-b">
+                        <tr className="text-muted-foreground">
+                          <th className="py-2 pr-4 font-medium">Motorista</th>
+                          <th className="py-2 pr-4 font-medium">Veiculos (hoje)</th>
+                          <th className="py-2 pr-4 font-medium">Veiculos (mes)</th>
+                          <th className="py-2 pr-4 font-medium">Entregas hoje</th>
+                          <th className="py-2 pr-4 font-medium">Entregas mes</th>
+                          <th className="py-2 pr-4 font-medium">Ocorrencias hoje</th>
+                          <th className="py-2 font-medium">Ocorrencias mes</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {paginatedDrivers.map((driver) => (
+                          <tr key={driver.driverKey} className="border-b last:border-none">
+                            <td className="py-2 pr-4">
+                              <div className="flex items-center gap-2">
+                                <span className="font-medium">{driver.name}</span>
+                                {driver.isTopToday ? <Award className="h-4 w-4 text-amber-500" /> : null}
+                              </div>
+                              {driver.username ? (
+                                <p className="text-xs text-muted-foreground">@{driver.username}</p>
+                              ) : null}
+                            </td>
+                            <td className="py-2 pr-4">
+                              {driver.vehiclesToday.length
+                                ? driver.vehiclesToday.map(formatDriverReportVehicle).join(', ')
+                                : 'Sem registro'}
+                            </td>
+                            <td className="py-2 pr-4">
+                              {driver.vehiclesMonth.length
+                                ? driver.vehiclesMonth.map(formatDriverReportVehicle).join(', ')
+                                : 'Sem registro'}
+                            </td>
+                            <td className="py-2 pr-4 font-semibold">{driver.deliveriesToday}</td>
+                            <td className="py-2 pr-4">{driver.deliveriesMonth}</td>
+                            <td className="py-2 pr-4">{driver.occurrencesToday}</td>
+                            <td className="py-2">{driver.occurrencesMonth}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </ScrollArea>
+                  <div className="flex flex-col items-center justify-between gap-3 border-t pt-3 text-sm lg:flex-row">
+                    <p className="text-muted-foreground">
+                      {driverReportTotalFiltered
+                        ? `Mostrando ${driverReportRangeStart}-${driverReportRangeEnd} de ${driverReportTotalFiltered} ${
+                            driverReportTotalFiltered === 1 ? 'motorista' : 'motoristas'
+                          }`
+                        : 'Nenhum motorista encontrado'}
+                    </p>
+                    <div className="flex items-center gap-2">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => setDriverReportPage((prev) => Math.max(1, prev - 1))}
+                        disabled={driverReportPage <= 1}
+                      >
+                        <ChevronLeft className="mr-2 h-4 w-4" />
+                        Anterior
+                      </Button>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() =>
+                          setDriverReportPage((prev) => Math.min(driverReportTotalPages, prev + 1))
+                        }
+                        disabled={driverReportPage >= driverReportTotalPages}
+                      >
+                        Proxima
+                        <ChevronRight className="ml-2 h-4 w-4" />
+                      </Button>
+                    </div>
+                  </div>
+                </>
+              ) : (
+                <p className="py-4 text-sm text-muted-foreground">
+                  {driverReportDrivers.length
+                    ? 'Nenhum motorista encontrado para a pesquisa.'
+                    : 'Nenhum dado encontrado.'}
+                </p>
+              )}
             </div>
           ) : (
             <p className="py-4 text-sm text-muted-foreground">Nenhum dado encontrado.</p>
