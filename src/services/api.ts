@@ -190,6 +190,10 @@ class ApiService {
     }
   }
 
+  async getDriverPerformanceReport() {
+    return this.request('/api/reports/driver-performance');
+  }
+
   // Authentication helpers
   async login(credentials: { username: string; password: string }) {
     return this.request('/api/auth/login', {

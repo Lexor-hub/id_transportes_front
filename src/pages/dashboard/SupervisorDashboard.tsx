@@ -17,7 +17,8 @@ import {
   Users,
   Activity,
   ClipboardList,
-  RefreshCw
+  RefreshCw,
+  Award
 } from 'lucide-react';
 import { apiService } from '@/services/api';
 import { computeMovementStatus, getMovementStatusTw, MOVEMENT_STATUS_LABEL, MovementStatus } from '@/lib/driver-status';
@@ -61,6 +62,49 @@ type AlertItem = {
   description: string;
   severity: 'info' | 'warning' | 'danger';
   timestamp: string;
+};
+
+type DriverReportVehicle = {
+  vehicleId: string | null;
+  plate: string | null;
+  model: string | null;
+  brand: string | null;
+  label: string;
+};
+
+type DriverReportEntry = {
+  driverKey: string;
+  driverId: string | null;
+  userId: string | null;
+  name: string;
+  username: string | null;
+  deliveriesToday: number;
+  deliveriesMonth: number;
+  occurrencesToday: number;
+  occurrencesMonth: number;
+  vehiclesToday: DriverReportVehicle[];
+  vehiclesMonth: DriverReportVehicle[];
+  isTopToday: boolean;
+  rankToday: number;
+};
+
+type DriverReportSummary = {
+  totalDrivers: number;
+  totalDeliveriesToday: number;
+  totalDeliveriesMonth: number;
+  topDriver: {
+    driverKey: string;
+    driverId: string | null;
+    userId: string | null;
+    name: string;
+    deliveriesToday: number;
+  } | null;
+};
+
+type DriverPerformanceReport = {
+  generatedAt: string;
+  summary: DriverReportSummary;
+  drivers: DriverReportEntry[];
 };
 
 const ALERT_STYLE = {
@@ -170,6 +214,10 @@ export const SupervisorDashboard = () => {
   const [finishedDeliveries, setFinishedDeliveries] = useState<TodayDelivery[]>([]);
   const [receiptsLoading, setReceiptsLoading] = useState(false);
   const [serverAlerts, setServerAlerts] = useState<AlertItem[]>([]);
+  const [showDriverReportModal, setShowDriverReportModal] = useState(false);
+  const [driverReportData, setDriverReportData] = useState<DriverPerformanceReport | null>(null);
+  const [driverReportLoading, setDriverReportLoading] = useState(false);
+
   const [alertsLoading, setAlertsLoading] = useState(false);
   // filters and pagination for receipts modal
   const [companies, setCompanies] = useState<Array<any>>([]);
@@ -636,6 +684,39 @@ export const SupervisorDashboard = () => {
     URL.revokeObjectURL(url);
   };
 
+  const fetchDriverPerformanceReport = useCallback(async () => {
+    setDriverReportLoading(true);
+    try {
+      const response = await apiService.getDriverPerformanceReport();
+      if (response.success) {
+        setDriverReportData(response.data as DriverPerformanceReport);
+      } else {
+        setDriverReportData(null);
+        toast({
+          title: 'Erro ao carregar relatorio',
+          description: response.error || 'Nao foi possivel gerar o relatorio de motoristas.',
+          variant: 'destructive',
+        });
+      }
+    } catch (error) {
+      setDriverReportData(null);
+      toast({
+        title: 'Erro ao carregar relatorio',
+        description: 'Nao foi possivel gerar o relatorio de motoristas.',
+        variant: 'destructive',
+      });
+    } finally {
+      setDriverReportLoading(false);
+    }
+  }, [toast]);
+
+  const handleDriverReportModalChange = useCallback((open: boolean) => {
+    setShowDriverReportModal(open);
+    if (open) {
+      void fetchDriverPerformanceReport();
+    }
+  }, [fetchDriverPerformanceReport]);
+
   useEffect(() => {
     loadDashboardData();
     loadVehicles(); // CORREÇÃO: Carrega os veículos ao montar o componente
@@ -820,11 +901,15 @@ export const SupervisorDashboard = () => {
                   <div className="text-xs text-muted-foreground">Consultar comprovantes de entrega</div>
                 </div>
               </Button>
-              <Button variant="outline" className="justify-start h-12">
+              <Button
+                variant="outline"
+                className="justify-start h-12"
+                onClick={() => handleDriverReportModalChange(true)}
+              >
                 <FileText className="mr-3 h-4 w-4" />
                 <div className="text-left">
-                  <div className="font-medium">Relatórios Básicos</div>
-                  <div className="text-xs text-muted-foreground">Gerar relatórios operacionais</div>
+                  <div className="font-medium">Relatorios Basicos</div>
+                  <div className="text-xs text-muted-foreground">Resumo de entregas por motorista</div>
                 </div>
               </Button>
               <Button 
@@ -1128,6 +1213,113 @@ export const SupervisorDashboard = () => {
               </DialogContent>
             </Dialog>
           )}
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={showDriverReportModal} onOpenChange={handleDriverReportModalChange}>
+        <DialogContent className="sm:max-w-6xl">
+          <DialogHeader className="space-y-2">
+            <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
+              <div className="space-y-1">
+                <DialogTitle>Relatorio de Motoristas</DialogTitle>
+                <DialogDescription>Resumo diario e mensal por motorista.</DialogDescription>
+                {driverReportData?.generatedAt ? (
+                  <p className="text-xs text-muted-foreground">
+                    Atualizado em {formatDateTime(driverReportData.generatedAt)}
+                  </p>
+                ) : null}
+              </div>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => void fetchDriverPerformanceReport()}
+                disabled={driverReportLoading}
+              >
+                <RefreshCw className={`mr-2 h-4 w-4 ${driverReportLoading ? 'animate-spin' : ''}`} />
+                Atualizar
+              </Button>
+            </div>
+          </DialogHeader>
+          {driverReportLoading ? (
+            <div className="flex items-center justify-center py-8">
+              <div className="h-6 w-6 animate-spin rounded-full border-2 border-primary/30 border-t-primary" />
+            </div>
+          ) : driverReportData ? (
+            <div className="space-y-4">
+              <div className="grid gap-3 sm:grid-cols-3">
+                <div className="rounded-lg border p-3">
+                  <p className="text-xs uppercase text-muted-foreground">Motoristas</p>
+                  <p className="text-lg font-semibold">{driverReportData.summary.totalDrivers}</p>
+                </div>
+                <div className="rounded-lg border p-3">
+                  <p className="text-xs uppercase text-muted-foreground">Entregas hoje</p>
+                  <p className="text-lg font-semibold">{driverReportData.summary.totalDeliveriesToday}</p>
+                </div>
+                <div className="rounded-lg border p-3">
+                  <p className="text-xs uppercase text-muted-foreground">Entregas no mes</p>
+                  <p className="text-lg font-semibold">{driverReportData.summary.totalDeliveriesMonth}</p>
+                </div>
+              </div>
+              {driverReportData.summary.topDriver ? (
+                <div className="flex items-center gap-3 rounded-lg border border-amber-200 bg-amber-50 p-3">
+                  <Award className="h-5 w-5 text-amber-500" />
+                  <div>
+                    <p className="text-sm font-semibold">{driverReportData.summary.topDriver.name}</p>
+                    <p className="text-xs text-muted-foreground">
+                      Destaque do dia com {driverReportData.summary.topDriver.deliveriesToday} entregas
+                    </p>
+                  </div>
+                </div>
+              ) : null}
+              <ScrollArea className="max-h-[60vh]">
+                <table className="w-full min-w-[720px] text-left text-sm">
+                  <thead className="border-b">
+                    <tr className="text-muted-foreground">
+                      <th className="py-2 pr-4 font-medium">Motorista</th>
+                      <th className="py-2 pr-4 font-medium">Veiculos (hoje)</th>
+                      <th className="py-2 pr-4 font-medium">Veiculos (mes)</th>
+                      <th className="py-2 pr-4 font-medium">Entregas hoje</th>
+                      <th className="py-2 pr-4 font-medium">Entregas mes</th>
+                      <th className="py-2 pr-4 font-medium">Ocorrencias hoje</th>
+                      <th className="py-2 font-medium">Ocorrencias mes</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {driverReportData.drivers.map((driver) => (
+                      <tr key={driver.driverKey} className="border-b last:border-none">
+                        <td className="py-2 pr-4">
+                          <div className="flex items-center gap-2">
+                            <span className="font-medium">{driver.name}</span>
+                            {driver.isTopToday ? (<Award className="h-4 w-4 text-amber-500" />) : null}
+                          </div>
+                          {driver.username ? (
+                            <p className="text-xs text-muted-foreground">@{driver.username}</p>
+                          ) : null}
+                        </td>
+                        <td className="py-2 pr-4">
+                          {driver.vehiclesToday.length ? driver.vehiclesToday.map(v => v.label).join(', ') : 'Sem registro'}
+                        </td>
+                        <td className="py-2 pr-4">
+                          {driver.vehiclesMonth.length ? driver.vehiclesMonth.map(v => v.label).join(', ') : 'Sem registro'}
+                        </td>
+                        <td className="py-2 pr-4 font-semibold">{driver.deliveriesToday}</td>
+                        <td className="py-2 pr-4">{driver.deliveriesMonth}</td>
+                        <td className="py-2 pr-4">{driver.occurrencesToday}</td>
+                        <td className="py-2">{driver.occurrencesMonth}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </ScrollArea>
+            </div>
+          ) : (
+            <p className="py-4 text-sm text-muted-foreground">Nenhum dado encontrado.</p>
+          )}
+          <DialogFooter>
+            <Button variant="secondary" onClick={() => handleDriverReportModalChange(false)}>
+              Fechar
+            </Button>
+          </DialogFooter>
         </DialogContent>
       </Dialog>
 

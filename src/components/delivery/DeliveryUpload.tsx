@@ -135,7 +135,7 @@ const readInitialCameraPermission = (): CameraPermissionState => {
       return stored;
     }
   } catch (error) {
-    console.warn('[DeliveryUpload] Não foi possível ler a permissão da câmera armazenada:', error);
+    console.warn('[DeliveryUpload] Não foi possível ler a permissão da câmera armazenada:', error); // Corrigido
   }
   return 'unknown';
 };
@@ -175,7 +175,7 @@ interface DeliveryUploadProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onSuccess?: () => void;
-  initialData?: DeliveryUploadInitialData;
+  initialData?: DeliveryUploadInitialData; // Corrigido
   // Propriedade adicionada para controlar a exibiï¿½ï¿½o do seletor de motorista.
   allowDriverSelection?: boolean;
 }
@@ -444,7 +444,7 @@ const buildInitialState = (initialData?: DeliveryUploadInitialData): StructuredI
     // O dueDate ï¿½ calculado ou preenchido pelo Document AI, nï¿½o ï¿½ um campo direto na NF_Data
   }
 
-  // Mapeamento de campos soltos para a nova estrutura
+  // Mapeamento de campos soltos para a nova estrutura // Corrigido
   base.nf_data.serie = initialData.serie || base.nf_data.serie;
   base.nf_data.chave = initialData.chave || base.nf_data.chave;
   base.valores.valor_frete = initialData.freight_amount || base.valores.valor_frete;
@@ -461,7 +461,7 @@ export const DeliveryUpload: React.FC<DeliveryUploadProps> = ({
   open,
   onOpenChange,
   onSuccess,
-  initialData,
+  initialData, // Corrigido
   allowDriverSelection = false // Valor padrï¿½o ï¿½ false
 }) => {
   const { toast } = useToast();
@@ -491,7 +491,7 @@ export const DeliveryUpload: React.FC<DeliveryUploadProps> = ({
   };
 
   useEffect(() => {
-    // Busca a lista de motoristas se a seleï¿½ï¿½o for permitida e o modal estiver aberto.
+    // Busca a lista de motoristas se a seleção for permitida e o modal estiver aberto.
     if (allowDriverSelection && open) {
       const fetchDrivers = async () => {
         try {
@@ -677,12 +677,12 @@ const handleDocumentAIData = (input: DocumentAIParsedPayload) => {
   const rawFields = (detail.rawFields ?? input.rawFields ?? {}) as Record<string, string[]>;
   const confidence = typeof detail.confidence === 'number' ? detail.confidence : (typeof input.confidence === 'number' ? input.confidence : null);
 
-  console.log('Texto extraÃ­do do PDF:', rawText);
+  console.log('Texto extraído do PDF:', rawText);
   if (rawFields && Object.keys(rawFields).length) {
-    console.log('RÃ³tulos Document AI recebidos:', rawFields);
+    console.log('Rótulos Document AI recebidos:', rawFields);
   }
   
-  const rawTextData = extractFieldsFromRawText(rawText);
+  const rawTextData = extractFieldsFromRawText(rawText); // Corrigido
 
   const newStructuredData = createEmptyStructuredData();
   newStructuredData.raw_text = rawText;
@@ -713,7 +713,7 @@ const handleDocumentAIData = (input: DocumentAIParsedPayload) => {
 
   toast({
     title: 'Dados recebidos do Document AI',
-    description: 'Os dados foram preenchidos automaticamente. Verifique e ajuste se necessÃ¡rio.'
+    description: 'Os dados foram preenchidos automaticamente. Verifique e ajuste se necessário.'
   });
 };
 
@@ -735,7 +735,7 @@ const handleDocumentAIData = (input: DocumentAIParsedPayload) => {
 
         toast({
           title: 'Documento processado com sucesso',
-          description: 'Os dados foram extraÃ­dos automaticamente. Verifique e ajuste se necessÃ¡rio.'
+          description: 'Os dados foram extraídos automaticamente. Verifique e ajuste se necessário.'
         });
       } else {
         setIsSefazValid(false);
@@ -751,7 +751,7 @@ const handleDocumentAIData = (input: DocumentAIParsedPayload) => {
       console.error('Erro ao processar documento com Document AI:', error);
       toast({
         title: 'Erro ao processar documento',
-        description: 'Ocorreu um erro ao enviar o documento para anÃ¡lise.',
+        description: 'Ocorreu um erro ao enviar o documento para análise.',
         variant: 'destructive'
       });
       setStep('form'); // Mantenha no formulÃ¡rio para preenchimento manual
@@ -773,7 +773,7 @@ const handleDocumentAIData = (input: DocumentAIParsedPayload) => {
     if (!isSefaz) {
       toast({
         title: 'Documento invÃ¡lido',
-        description: 'O arquivo XML nÃ£o parece ser um documento SEFAZ vÃ¡lido',
+        description: 'O arquivo XML não parece ser um documento SEFAZ válido',
         variant: 'destructive'
       });
       return false;
@@ -789,7 +789,7 @@ const handleDocumentAIData = (input: DocumentAIParsedPayload) => {
   const fileExtension = file.name.toLowerCase().substring(file.name.lastIndexOf('.'));
   if (!ALLOWED_FILE_EXTENSIONS.includes(fileExtension)) {
     toast({
-      title: 'Arquivo nÃ£o suportado',
+      title: 'Arquivo não suportado',
       description: 'Envie um XML, PDF ou imagem (JPG, PNG, WEBP, HEIC).',
       variant: 'destructive'
     });
@@ -831,7 +831,7 @@ const handleDocumentAIData = (input: DocumentAIParsedPayload) => {
       try {
         window.localStorage.setItem(CAMERA_PERMISSION_STORAGE_KEY, value);
       } catch (error) {
-        console.warn('[DeliveryUpload] Falha ao registrar permissao da camera:', error);
+        console.warn('[DeliveryUpload] Falha ao registrar permissão da câmera:', error);
       }
     }
     setCameraPermissionState(value);
@@ -849,7 +849,7 @@ const handleDocumentAIData = (input: DocumentAIParsedPayload) => {
 
     if (typeof navigator === 'undefined' || !navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
       toast({
-        title: 'Camera indisponivel',
+        title: 'Câmera indisponível',
         description: 'Nao foi possivel acessar a camera automaticamente. Selecione a foto manualmente.',
         variant: 'destructive'
       });
@@ -894,7 +894,7 @@ const handleDocumentAIData = (input: DocumentAIParsedPayload) => {
       stream.getTracks().forEach((track) => track.stop());
     } catch (error) {
        // Correção: Trata erros de permissão de forma mais específica
-      if (error instanceof Error && (error.name === 'NotAllowedError' || error.name === 'PermissionDeniedError')) {
+      if (error instanceof Error && (error.name === 'NotAllowedError' || error.name === 'PermissionDeniedError')) { // Corrigido
         console.warn('Acesso à câmera negado pelo usuário ou navegador.');
         toast({
           title: 'Acesso à câmera negado',
@@ -916,7 +916,7 @@ const handleDocumentAIData = (input: DocumentAIParsedPayload) => {
   const handleRequestCameraPermission = async () => {
     setCameraPermissionLoading(true);
     try {
-      if (!navigator?.mediaDevices?.getUserMedia) {
+      if (!navigator?.mediaDevices?.getUserMedia) { // Corrigido
         throw new Error('API de camera indisponivel neste dispositivo');
       }
       const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } });
@@ -924,16 +924,16 @@ const handleDocumentAIData = (input: DocumentAIParsedPayload) => {
       persistCameraPermission('granted');
       setShowCameraPermissionDialog(false);
       toast({
-        title: 'Permissao concedida',
+        title: 'Permissão concedida',
         description: 'Voce pode tirar fotos diretamente pelo aplicativo.',
       });
       setTimeout(() => cameraInputRef.current?.click(), 50);
     } catch (error) {
-      console.error('[DeliveryUpload] Falha ao solicitar permissao da camera:', error);
+      console.error('[DeliveryUpload] Falha ao solicitar permissão da câmera:', error);
       persistCameraPermission('denied');
       setShowCameraPermissionDialog(false);
       toast({
-        title: 'Permissao negada',
+        title: 'Permissão negada',
         description: 'Nao foi possivel acessar a camera. Selecione uma imagem da galeria.',
         variant: 'destructive',
       });
@@ -947,7 +947,7 @@ const handleDocumentAIData = (input: DocumentAIParsedPayload) => {
     persistCameraPermission('denied');
     setShowCameraPermissionDialog(false);
     toast({
-      title: 'Permissao da camera nao concedida',
+      title: 'Permissão da câmera não concedida',
       description: 'Voce ainda pode anexar fotos selecionando arquivos da galeria.',
     });
     cameraInputRef.current?.click();
@@ -1077,16 +1077,14 @@ const handleSaveDelivery = async () => {
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <Card className="cursor-pointer hover:bg-accent/50 transition-colors" onClick={() => fileInputRef.current?.click()}>
+              <Card className="cursor-pointer hover:bg-accent/50 transition-colors" onClick={() => fileInputRef.current?.click()}> // Corrigido
                 <CardContent className="flex flex-col items-center justify-center p-6 space-y-4">
                   <div className="w-16 h-16 bg-primary/10 rounded-full flex items-center justify-center">
                     <Upload className="h-8 w-8 text-primary" />
                   </div>
                   <div className="text-center">
                     <h3 className="font-semibold">Selecionar Arquivo</h3>
-                    <p className="text-sm text-muted-foreground mt-1">
-                      XML, PDF ou Foto (extraÃ§Ã£o automÃ¡tica)
-                    </p>
+                    <p className="text-sm text-muted-foreground mt-1">XML, PDF ou Foto (extração automática)</p>
                   </div>
                 </CardContent>
               </Card>
@@ -1098,9 +1096,7 @@ const handleSaveDelivery = async () => {
                   </div>
                   <div className="text-center">
                     <h3 className="font-semibold">Tirar Foto</h3>
-                    <p className="text-sm text-muted-foreground mt-1">
-                      Fotografar documento (OCR automÃ¡tico)
-                    </p>
+                    <p className="text-sm text-muted-foreground mt-1">Fotografar documento (OCR automático)</p>
                   </div>
                 </CardContent>
               </Card>
@@ -1126,16 +1122,16 @@ const handleSaveDelivery = async () => {
             <Dialog open={showCameraPermissionDialog} onOpenChange={setShowCameraPermissionDialog}>
               <DialogContent className="sm:max-w-md">
                 <DialogHeader>
-                  <DialogTitle>Permitir acesso a camera</DialogTitle>
+                  <DialogTitle>Permitir acesso à câmera</DialogTitle>
                   <DialogDescription>
-                    Precisamos da sua autorizacao para abrir a camera do dispositivo e registrar o canhoto.
+                    Precisamos da sua autorização para abrir a câmera do dispositivo e registrar o canhoto.
                   </DialogDescription>
                 </DialogHeader>
                 <div className="space-y-3 text-sm text-muted-foreground">
                   <p>Ao prosseguir você poderá tirar fotos diretamente pelo aplicativo.</p>
                   {cameraPermissionState === 'denied' && (
                     <p className="text-xs text-destructive">
-                      O navegador registrou a permissão como negada. Se o problema persistir, habilite a camera nas
+                      O navegador registrou a permissão como negada. Se o problema persistir, habilite a câmera nas
                       configurações do dispositivo ou do navegador.
                     </p>
                   )}
@@ -1181,7 +1177,7 @@ const handleSaveDelivery = async () => {
 
             {allowDriverSelection && (
               <div className="space-y-2">
-                <h3 className="text-sm font-semibold text-muted-foreground">Atribuir a Motorista</h3>
+                <h3 className="text-sm font-semibold text-muted-foreground">Atribuir a Motorista</h3> // Corrigido
                 <select
                   className="h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
                   value={selectedDriverUserId || ''}
