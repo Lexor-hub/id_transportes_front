@@ -550,11 +550,6 @@ export const DriverDashboard = () => {
                     const rawDriverId = anyItem.driver_id ?? anyItem.driverId ?? anyItem.driver_user_id ?? null;
                     const driverIdForDelivery = rawDriverId !== undefined && rawDriverId !== null ? String(rawDriverId) : undefined;
 
-                    const createdAtRaw = typeof item.created_at === 'string' ? item.created_at : '';
-                    const emissionDateRaw = typeof anyItem.emission_date === 'string' ? anyItem.emission_date : '';
-                    const expectedDateRaw = typeof anyItem.delivery_date_expected === 'string' ? anyItem.delivery_date_expected : '';
-                    const referenceDate = createdAtRaw || expectedDateRaw || emissionDateRaw || '';
-
                     return {
                         id: item.id.toString(),
                         nfNumber: item.nf_number,
@@ -572,15 +567,12 @@ export const DriverDashboard = () => {
                             ? 'PENDENTE'
                             : 'PROBLEMA',
                         hasReceipt: Boolean(item.has_receipt),
-                        createdAt: referenceDate,
+                        createdAt: item.created_at,
                         receiptImageUrl: item.receipt_image_url || item.image_url || null,
                         driverId: driverIdForDelivery,
                     } as Delivery;
                 })
                 .filter((delivery) => {
-                    if (delivery.driverId && delivery.driverId !== driverIdToFetch) {
-                        return false;
-                    }
                     if (!delivery.createdAt || delivery.createdAt.length < 10) {
                         return false;
                     }
