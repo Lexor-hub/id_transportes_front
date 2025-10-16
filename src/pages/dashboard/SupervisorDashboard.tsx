@@ -289,8 +289,23 @@ export const SupervisorDashboard = () => {
             .sort((a, b) => a.name.localeCompare(b.name, 'pt-BR'));
 
           setDriverStatuses(normalized);
+          setStats(prev => ({
+            ...prev,
+            motoristasAtivos: normalized.length,
+          }));
+        } else {
+          setDriverStatuses([]);
+          setStats(prev => ({
+            ...prev,
+            motoristasAtivos: 0,
+          }));
         }
       } catch (error) {
+        setDriverStatuses([]);
+        setStats(prev => ({
+          ...prev,
+          motoristasAtivos: 0,
+        }));
         if (!silent) {
           toast({
             title: 'Falha ao carregar motoristas',
@@ -393,8 +408,11 @@ export const SupervisorDashboard = () => {
           } as TodayDelivery;
         });
 
-        // CORREÇÃO: O backend já retorna a lista correta, então o filtro de data no frontend foi removido.
-        const sorted = deliveriesData.sort((a, b) => toTimestamp(b.createdAt) - toTimestamp(a.createdAt));
+        // Mantém apenas as entregas registradas na data atual para evitar contagens divergentes.
+        const filtered = deliveriesData.filter(
+          (delivery) => typeof delivery.createdAt === 'string' && delivery.createdAt.slice(0, 10) === todayIso
+        );
+        const sorted = filtered.sort((a, b) => toTimestamp(b.createdAt) - toTimestamp(a.createdAt));
 
         setTodayDeliveries(sorted);
         setStats(prev => ({
@@ -693,23 +711,27 @@ export const SupervisorDashboard = () => {
         // If backend returned a list of today's deliveries, normalize and store it
         const deliveriesList = kpis?.today_deliveries?.list;
         if (Array.isArray(deliveriesList)) {
-          const mapped: TodayDelivery[] = deliveriesList.map((item: any) => {
-            const createdAt = typeof item.created_at === 'string' ? item.created_at : (item.delivery_date_expected || '');
-            const hasReceipt = Boolean(item.receipt_id || item.dr_id || item.receiptId || item.dr);
-            return {
-              id: String(item.id ?? ''),
-              nfNumber: String(item.nf_number ?? item.nfNumber ?? 'N/A'),
-              clientName: String(item.client_name ?? item.client_name_extracted ?? 'Cliente não identificado'),
-              driverName: String(item.driver_name ?? 'Sem motorista'),
-              address: String(item.delivery_address ?? item.client_address ?? 'Endereço não informado'),
-              statusLabel: formatDeliveryStatus(item.status, hasReceipt),
-              createdAt,
-            } as TodayDelivery;
-          }).sort((a, b) => {
-            const ta = a.createdAt ? new Date(a.createdAt).getTime() : 0;
-            const tb = b.createdAt ? new Date(b.createdAt).getTime() : 0;
-            return tb - ta;
-          });
+          const todayIso = new Date().toISOString().slice(0, 10);
+          const mapped: TodayDelivery[] = deliveriesList
+            .map((item: any) => {
+              const createdAt = typeof item.created_at === 'string' ? item.created_at : (item.delivery_date_expected || '');
+              const hasReceipt = Boolean(item.receipt_id || item.dr_id || item.receiptId || item.dr);
+              return {
+                id: String(item.id ?? ''),
+                nfNumber: String(item.nf_number ?? item.nfNumber ?? 'N/A'),
+                clientName: String(item.client_name ?? item.client_name_extracted ?? 'Cliente n�o identificado'),
+                driverName: String(item.driver_name ?? 'Sem motorista'),
+                address: String(item.delivery_address ?? item.client_address ?? 'Endere�o n�o informado'),
+                statusLabel: formatDeliveryStatus(item.status, hasReceipt),
+                createdAt,
+              } as TodayDelivery;
+            })
+            .filter((delivery) => typeof delivery.createdAt === 'string' && delivery.createdAt.slice(0, 10) === todayIso)
+            .sort((a, b) => {
+              const ta = a.createdAt ? new Date(a.createdAt).getTime() : 0;
+              const tb = b.createdAt ? new Date(b.createdAt).getTime() : 0;
+              return tb - ta;
+            });
 
           setTodayDeliveries(mapped);
           setStats(prev => ({
