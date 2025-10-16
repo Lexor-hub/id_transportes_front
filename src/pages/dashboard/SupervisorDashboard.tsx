@@ -408,11 +408,8 @@ export const SupervisorDashboard = () => {
           } as TodayDelivery;
         });
 
-        // Mantém apenas as entregas registradas na data atual para evitar contagens divergentes.
-        const filtered = deliveriesData.filter(
-          (delivery) => typeof delivery.createdAt === 'string' && delivery.createdAt.slice(0, 10) === todayIso
-        );
-        const sorted = filtered.sort((a, b) => toTimestamp(b.createdAt) - toTimestamp(a.createdAt));
+        // CORREÇÃO: O backend já retorna a lista correta de entregas do dia. O filtro de data no frontend foi removido para evitar inconsistências.
+        const sorted = deliveriesData.sort((a, b) => toTimestamp(b.createdAt) - toTimestamp(a.createdAt));
 
         setTodayDeliveries(sorted);
         setStats(prev => ({
