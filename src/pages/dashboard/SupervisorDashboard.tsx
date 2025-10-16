@@ -1386,6 +1386,7 @@ export const SupervisorDashboard = () => {
             </div>
           ) : driverReportData ? (
             <div className="space-y-4">
+              {/* ... (cabeçalho com stats e destaque do dia) ... */}
               <div className="grid gap-3 sm:grid-cols-3">
                 <div className="rounded-lg border p-3">
                   <p className="text-xs uppercase text-muted-foreground">Motoristas</p>
@@ -1411,6 +1412,8 @@ export const SupervisorDashboard = () => {
                   </div>
                 </div>
               ) : null}
+
+              {/* CONTROLES RESPONSIVOS: Empilha na vertical em telas pequenas e fica lado a lado em telas grandes */}
               <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
                 <div className="w-full lg:max-w-sm">
                   <div className="relative">
@@ -1435,17 +1438,16 @@ export const SupervisorDashboard = () => {
                   </span>
                 </div>
               </div>
+
               {paginatedDrivers.length ? (
                 <>
+                  {/* INÍCIO DA CORREÇÃO: Layout de Cartões para Telas Pequenas */}
                   <div className="space-y-3 lg:hidden">
                     {paginatedDrivers.map((driver) => {
                       const vehiclesTodayLabel = driver.vehiclesToday.length
                         ? driver.vehiclesToday.map(formatDriverReportVehicle).join(', ')
                         : 'Sem registro';
-                      const vehiclesMonthLabel = driver.vehiclesMonth.length
-                        ? driver.vehiclesMonth.map(formatDriverReportVehicle).join(', ')
-                        : 'Sem registro';
-
+                      
                       return (
                         <div key={driver.driverKey} className="space-y-2 rounded-lg border p-3">
                           <div className="flex items-start justify-between gap-2">
@@ -1457,47 +1459,48 @@ export const SupervisorDashboard = () => {
                             </div>
                             {driver.isTopToday ? <Award className="h-4 w-4 text-amber-500" /> : null}
                           </div>
-                          <div className="space-y-1 text-xs text-muted-foreground">
+                          <div className="grid grid-cols-2 gap-x-4 gap-y-1 text-xs text-muted-foreground">
                             <p>
-                              <span className="font-semibold text-foreground">Veiculos (hoje):</span>{' '}
-                              {vehiclesTodayLabel}
-                            </p>
-                            <p>
-                              <span className="font-semibold text-foreground">Veiculos (mes):</span>{' '}
-                              {vehiclesMonthLabel}
-                            </p>
-                            <p>
-                              <span className="font-semibold text-foreground">Entregas hoje:</span>{' '}
+                              <span className="font-semibold text-foreground">Entregas (hoje):</span>{' '}
                               {driver.deliveriesToday}
                             </p>
-                            <p>
-                              <span className="font-semibold text-foreground">Entregas mes:</span>{' '}
+                             <p>
+                              <span className="font-semibold text-foreground">Entregas (mês):</span>{' '}
                               {driver.deliveriesMonth}
                             </p>
                             <p>
-                              <span className="font-semibold text-foreground">Ocorrencias hoje:</span>{' '}
+                              <span className="font-semibold text-foreground">Ocorrências (hoje):</span>{' '}
                               {driver.occurrencesToday}
                             </p>
-                            <p>
-                              <span className="font-semibold text-foreground">Ocorrencias mes:</span>{' '}
+                             <p>
+                              <span className="font-semibold text-foreground">Ocorrências (mês):</span>{' '}
                               {driver.occurrencesMonth}
                             </p>
                           </div>
+                           <div className="text-xs text-muted-foreground pt-1 border-t mt-2">
+                              <p>
+                                <span className="font-semibold text-foreground">Veículos (hoje):</span>{' '}
+                                {vehiclesTodayLabel}
+                              </p>
+                            </div>
                         </div>
                       );
                     })}
                   </div>
+                  {/* FIM DA CORREÇÃO */}
+
+                  {/* Tabela para Telas Grandes */}
                   <ScrollArea className="hidden max-h-[60vh] w-full overflow-x-auto lg:block">
                     <table className="w-full min-w-[720px] text-left text-sm">
+                      {/* ... (thead da tabela continua o mesmo) ... */}
                       <thead className="border-b">
                         <tr className="text-muted-foreground">
                           <th className="py-2 pr-4 font-medium">Motorista</th>
                           <th className="py-2 pr-4 font-medium">Veiculos (hoje)</th>
-                          <th className="py-2 pr-4 font-medium">Veiculos (mes)</th>
                           <th className="py-2 pr-4 font-medium">Entregas hoje</th>
                           <th className="py-2 pr-4 font-medium">Entregas mes</th>
-                          <th className="py-2 pr-4 font-medium">Ocorrencias hoje</th>
-                          <th className="py-2 font-medium">Ocorrencias mes</th>
+                          <th className="py-2 pr-4 font-medium">Ocorrências hoje</th>
+                          <th className="py-2 font-medium">Ocorrências mes</th>
                         </tr>
                       </thead>
                       <tbody>
@@ -1508,18 +1511,11 @@ export const SupervisorDashboard = () => {
                                 <span className="font-medium">{driver.name}</span>
                                 {driver.isTopToday ? <Award className="h-4 w-4 text-amber-500" /> : null}
                               </div>
-                              {driver.username ? (
-                                <p className="text-xs text-muted-foreground">@{driver.username}</p>
-                              ) : null}
+                              {driver.username && <p className="text-xs text-muted-foreground">@{driver.username}</p>}
                             </td>
                             <td className="py-2 pr-4">
                               {driver.vehiclesToday.length
                                 ? driver.vehiclesToday.map(formatDriverReportVehicle).join(', ')
-                                : 'Sem registro'}
-                            </td>
-                            <td className="py-2 pr-4">
-                              {driver.vehiclesMonth.length
-                                ? driver.vehiclesMonth.map(formatDriverReportVehicle).join(', ')
                                 : 'Sem registro'}
                             </td>
                             <td className="py-2 pr-4 font-semibold">{driver.deliveriesToday}</td>
@@ -1531,7 +1527,8 @@ export const SupervisorDashboard = () => {
                       </tbody>
                     </table>
                   </ScrollArea>
-                  <div className="flex flex-col items-center justify-between gap-3 border-t pt-3 text-sm lg:flex-row">
+                  {/* ... (Controles de paginação continuam os mesmos) ... */}
+                   <div className="flex flex-col items-center justify-between gap-3 border-t pt-3 text-sm lg:flex-row">
                     <p className="text-muted-foreground">
                       {driverReportTotalFiltered
                         ? `Mostrando ${driverReportRangeStart}-${driverReportRangeEnd} de ${driverReportTotalFiltered} ${
@@ -1565,15 +1562,14 @@ export const SupervisorDashboard = () => {
                 </>
               ) : (
                 <p className="py-4 text-sm text-muted-foreground">
-                  {driverReportDrivers.length
-                    ? 'Nenhum motorista encontrado para a pesquisa.'
-                    : 'Nenhum dado encontrado.'}
+                  Nenhum motorista encontrado.
                 </p>
               )}
             </div>
           ) : (
             <p className="py-4 text-sm text-muted-foreground">Nenhum dado encontrado.</p>
           )}
+          {/* ... (DialogFooter continua o mesmo) ... */}
           <DialogFooter>
             <Button variant="secondary" onClick={() => handleDriverReportModalChange(false)}>
               Fechar
