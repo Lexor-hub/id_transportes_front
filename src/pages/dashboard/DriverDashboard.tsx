@@ -578,7 +578,7 @@ export const DriverDashboard = () => {
                     } as Delivery;
                 })
                 .filter((delivery) => {
-                    if (!delivery.driverId || delivery.driverId !== driverIdToFetch) {
+                    if (delivery.driverId && delivery.driverId !== driverIdToFetch) {
                         return false;
                     }
                     if (!delivery.createdAt || delivery.createdAt.length < 10) {
