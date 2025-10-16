@@ -18,7 +18,8 @@ import {
   Activity,
   ClipboardList,
   RefreshCw,
-  Award
+  Award,
+  Download
 } from 'lucide-react';
 import { apiService } from '@/services/api';
 import { computeMovementStatus, getMovementStatusTw, MOVEMENT_STATUS_LABEL, MovementStatus } from '@/lib/driver-status';
@@ -717,6 +718,41 @@ export const SupervisorDashboard = () => {
     }
   }, [fetchDriverPerformanceReport]);
 
+  const downloadDriverReportCsv = () => {
+    if (!driverReportData || driverReportData.drivers.length === 0) {
+      toast({ title: "Nenhum dado para exportar." });
+      return;
+    }
+
+    const headers = [
+      "Motorista",
+      "Entregas (Hoje)",
+      "Entregas (Mês)",
+      "Ocorrências (Hoje)",
+      "Ocorrências (Mês)",
+      "Veículos (Hoje)",
+    ];
+
+    const csvRows = [headers.join(',')];
+    driverReportData.drivers.forEach(d => {
+      const row = [
+        `"${d.name}"`, d.deliveriesToday, d.deliveriesMonth, d.occurrencesToday, d.occurrencesMonth, `"${d.vehiclesToday.map(v => v.label).join('; ')}"`
+      ].join(',');
+      csvRows.push(row);
+    });
+
+    const csvString = csvRows.join('\n');
+    const blob = new Blob([`\uFEFF${csvString}`], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `relatorio_desempenho_${new Date().toISOString().slice(0,10)}.csv`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  };
+
   useEffect(() => {
     loadDashboardData();
     loadVehicles(); // CORREÇÃO: Carrega os veículos ao montar o componente
@@ -1229,15 +1265,26 @@ export const SupervisorDashboard = () => {
                   </p>
                 ) : null}
               </div>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => void fetchDriverPerformanceReport()}
-                disabled={driverReportLoading}
-              >
-                <RefreshCw className={`mr-2 h-4 w-4 ${driverReportLoading ? 'animate-spin' : ''}`} />
-                Atualizar
-              </Button>
+              <div className="flex items-center gap-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={downloadDriverReportCsv}
+                  disabled={driverReportLoading || !driverReportData || driverReportData.drivers.length === 0}
+                >
+                  <Download className="mr-2 h-4 w-4" />
+                  Baixar CSV
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => void fetchDriverPerformanceReport()}
+                  disabled={driverReportLoading}
+                >
+                  <RefreshCw className={`mr-2 h-4 w-4 ${driverReportLoading ? 'animate-spin' : ''}`} />
+                  Atualizar
+                </Button>
+              </div>
             </div>
           </DialogHeader>
           {driverReportLoading ? (
@@ -1271,7 +1318,7 @@ export const SupervisorDashboard = () => {
                   </div>
                 </div>
               ) : null}
-              <ScrollArea className="max-h-[60vh]">
+              <ScrollArea className="max-h-[60vh] w-full overflow-x-auto">
                 <table className="w-full min-w-[720px] text-left text-sm">
                   <thead className="border-b">
                     <tr className="text-muted-foreground">
