@@ -146,11 +146,42 @@ class ApiService {
     return this.request('/api/dashboard/kpis');
   }
 
-  async getSecureFile(url: string): Promise<string | null> {
+  async getSecureFile(sourceUrl: string): Promise<string | null> {
     try {
       const headers = this.getAuthHeader();
-      const res = await fetch(url, { headers });
-      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const pathFromUrl = (() => {
+        try {
+          const parsed = new URL(sourceUrl);
+          return parsed.searchParams.get('path');
+        } catch {
+          return null;
+        }
+      })();
+
+      const searchParams = new URLSearchParams();
+      if (pathFromUrl) {
+        searchParams.set('path', pathFromUrl);
+      } else if (sourceUrl) {
+        if (/^https?:\/\//i.test(sourceUrl)) {
+          searchParams.set('url', sourceUrl);
+        } else {
+          searchParams.set('path', sourceUrl);
+        }
+      }
+
+      if (!searchParams.toString()) {
+        return null;
+      }
+
+      const proxyEndpoint = '/api/reports/canhotos/proxy-view';
+      const proxyBase = getBaseUrl(proxyEndpoint);
+      const requestUrl = `${proxyBase}${proxyEndpoint}?${searchParams.toString()}`;
+
+      const res = await fetch(requestUrl, { headers });
+      if (!res.ok) {
+        throw new Error(`HTTP ${res.status}`);
+      }
+
       const blob = await res.blob();
       return URL.createObjectURL(blob);
     } catch (err) {
