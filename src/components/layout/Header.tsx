@@ -98,7 +98,6 @@ export const Header = () => {
       case 'MOTORISTA':
         return [
           { href: '/dashboard', label: 'Minhas Entregas', icon: Package },
-          { href: '/dashboard/rastreamento', label: 'Rastreamento', icon: MapPin },
         ];
       case 'CLIENT':
         return [

@@ -1300,7 +1300,7 @@ const handleDisableLocation = () => {
                                 <SelectTrigger>
                                     <SelectValue placeholder="Selecione um veiculo" />
                                 </SelectTrigger>
-                                <SelectContent>
+                                <SelectContent className="bg-white">
                                     {vehicles.map((vehicle) => (
                                         <SelectItem key={vehicle.id} value={vehicle.id}>
                                             <div className="flex flex-col">

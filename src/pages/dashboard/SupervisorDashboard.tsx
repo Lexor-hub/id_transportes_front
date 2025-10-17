@@ -564,20 +564,44 @@ export const SupervisorDashboard = () => {
         const normalized: AlertItem[] = (response.data as Array<Record<string, unknown>>).map((item, index) => {
           const timestamp = typeof item.timestamp === 'string' ? item.timestamp : (typeof item.occurredAt === 'string' ? item.occurredAt : new Date().toISOString());
           const nfNumber = item.nfNumber ?? item.nf_number ?? null;
-          const driverName = item.driverName ?? item.driver_name ?? 'Motorista';
+          const driverName = item.driverName ?? item.driver_name ?? null;
+          const vehicleLabel = item.vehicleLabel ?? item.vehicle_label ?? null;
+          const actorName = item.actorName ?? item.actor_name ?? null;
+          const message = item.message ?? item.details ?? null;
           const descriptionParts: string[] = [];
+          if (typeof message === 'string' && message.trim().length) {
+            descriptionParts.push(message.trim());
+          }
           if (nfNumber) descriptionParts.push(`NF ${nfNumber}`);
           if (driverName) descriptionParts.push(`Motorista: ${driverName}`);
-          const vehicleLabel = item.vehicleLabel ?? item.vehicle_label;
           if (vehicleLabel) descriptionParts.push(`Veiculo: ${vehicleLabel}`);
-          const description = descriptionParts.length ? descriptionParts.join(' • ') : 'Entrega removida pelo motorista.';
+          if (actorName && (!driverName || actorName !== driverName)) {
+            descriptionParts.push(`Acao por: ${actorName}`);
+          }
+          const description = descriptionParts.length ? descriptionParts.join(' | ') : 'Entrega removida pelo motorista.';
           const rawId = item.id ?? item.deliveryId ?? item.delivery_id ?? `server-${index}`;
+
+          const type = (item.type ?? 'delivery_deleted') as string;
+          const severityRaw = typeof item.severity === 'string' ? item.severity.toLowerCase() : null;
+          const severity: AlertItem['severity'] =
+            severityRaw === 'danger' || severityRaw === 'warning'
+              ? (severityRaw as AlertItem['severity'])
+              : type === 'delivery_deleted'
+                ? 'danger'
+                : 'info';
+
+          const title =
+            typeof item.title === 'string' && item.title.trim().length
+              ? item.title.trim()
+              : type === 'delivery_deleted'
+                ? 'Entrega excluida pelo motorista'
+                : 'Alerta operacional';
 
           return {
             id: `${String(rawId)}-${timestamp}`,
-            title: 'Entrega excluida pelo motorista',
+            title,
             description,
-            severity: 'danger',
+            severity,
             timestamp,
           } as AlertItem;
         });
