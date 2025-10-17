@@ -134,6 +134,10 @@ const DRIVER_REPORT_PAGE_SIZE_MOBILE = 3;
 const DRIVER_REPORT_MOBILE_BREAKPOINT = 1024; // matches tailwind lg breakpoint
 const EMPTY_DRIVER_REPORT_LIST: DriverReportEntry[] = [];
 
+const RECEIPTS_PAGE_SIZE_DESKTOP = 10;
+const RECEIPTS_PAGE_SIZE_MOBILE = 3;
+const EMPTY_RECEIPTS_LIST: TodayDelivery[] = [];
+
 const formatDeliveryStatus = (status?: string, hasReceipt?: boolean) => {
   const normalized = (status || '').toUpperCase();
   if (hasReceipt || normalized === 'DELIVERED' || normalized === 'ENTREGUE') {
@@ -240,8 +244,9 @@ export const SupervisorDashboard = () => {
   const [driverQuery, setDriverQuery] = useState<string>('');
   const [filterStartDate, setFilterStartDate] = useState<string | undefined>(undefined);
   const [filterEndDate, setFilterEndDate] = useState<string | undefined>(undefined);
-  const [currentPage, setCurrentPage] = useState(1);
-  const PER_PAGE = 10;
+  const [receiptsSearchTerm, setReceiptsSearchTerm] = useState('');
+  const [receiptsPage, setReceiptsPage] = useState(1);
+  const [receiptsPageSize, setReceiptsPageSize] = useState(RECEIPTS_PAGE_SIZE_DESKTOP);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [vehicles, setVehicles] = useState<Vehicle[]>([]); // CORREÇÃO: Estado para armazenar veículos
   const { toast } = useToast();
@@ -377,6 +382,80 @@ export const SupervisorDashboard = () => {
     : 0;
   const driverReportRangeEnd = driverReportTotalFiltered
     ? Math.min(driverReportRangeStart + effectiveDriverReportPageSize - 1, driverReportTotalFiltered)
+    : 0;
+
+  const receiptsList = finishedDeliveries ?? EMPTY_RECEIPTS_LIST;
+  const effectiveReceiptsPageSize =
+    receiptsPageSize > 0 ? receiptsPageSize : RECEIPTS_PAGE_SIZE_DESKTOP;
+
+  useEffect(() => {
+    if (!showReceiptsModal) {
+      setReceiptsSearchTerm('');
+      setReceiptsPage(1);
+      setReceiptsPageSize(RECEIPTS_PAGE_SIZE_DESKTOP);
+      return;
+    }
+
+    if (typeof window === 'undefined') {
+      setReceiptsPageSize(RECEIPTS_PAGE_SIZE_DESKTOP);
+      return;
+    }
+
+    const syncReceiptsViewport = () => {
+      const isMobile = window.innerWidth < DRIVER_REPORT_MOBILE_BREAKPOINT;
+      setReceiptsPageSize(
+        isMobile ? RECEIPTS_PAGE_SIZE_MOBILE : RECEIPTS_PAGE_SIZE_DESKTOP
+      );
+    };
+
+    syncReceiptsViewport();
+    window.addEventListener('resize', syncReceiptsViewport);
+    return () => window.removeEventListener('resize', syncReceiptsViewport);
+  }, [showReceiptsModal]);
+
+  useEffect(() => {
+    if (receiptsPage !== 1) {
+      setReceiptsPage(1);
+    }
+  }, [receiptsSearchTerm, receiptsPageSize, receiptsList]);
+
+  const receiptsFilteredDeliveries = useMemo(() => {
+    if (!receiptsList.length) return EMPTY_RECEIPTS_LIST;
+
+    const term = receiptsSearchTerm.trim().toLowerCase();
+    if (!term) return receiptsList;
+
+    return receiptsList.filter((delivery) => {
+      const nf = (delivery.nfNumber ?? '').toLowerCase();
+      const client = (delivery.clientName ?? '').toLowerCase();
+      const driver = (delivery.driverName ?? '').toLowerCase();
+      return nf.includes(term) || client.includes(term) || driver.includes(term);
+    });
+  }, [receiptsList, receiptsSearchTerm]);
+
+  const receiptsTotalPages = Math.max(
+    1,
+    Math.ceil(receiptsFilteredDeliveries.length / effectiveReceiptsPageSize)
+  );
+
+  useEffect(() => {
+    if (receiptsPage > receiptsTotalPages) {
+      setReceiptsPage(receiptsTotalPages);
+    }
+  }, [receiptsPage, receiptsTotalPages]);
+
+  const paginatedReceipts = useMemo(() => {
+    if (!receiptsFilteredDeliveries.length) return EMPTY_RECEIPTS_LIST;
+    const start = (receiptsPage - 1) * effectiveReceiptsPageSize;
+    return receiptsFilteredDeliveries.slice(start, start + effectiveReceiptsPageSize);
+  }, [receiptsFilteredDeliveries, receiptsPage, effectiveReceiptsPageSize]);
+
+  const receiptsTotalFiltered = receiptsFilteredDeliveries.length;
+  const receiptsRangeStart = receiptsTotalFiltered
+    ? (receiptsPage - 1) * effectiveReceiptsPageSize + 1
+    : 0;
+  const receiptsRangeEnd = receiptsTotalFiltered
+    ? Math.min(receiptsRangeStart + effectiveReceiptsPageSize - 1, receiptsTotalFiltered)
     : 0;
 
   const loadDriverStatuses = useCallback(
@@ -678,7 +757,7 @@ export const SupervisorDashboard = () => {
         }
 
         setFinishedDeliveries(resultList);
-        setCurrentPage(1);
+        setReceiptsPage(1);
       } else {
         setFinishedDeliveries([]);
         toast({
@@ -749,7 +828,7 @@ export const SupervisorDashboard = () => {
       setFilterDriver(undefined);
     }
 
-    setCurrentPage(1);
+    setReceiptsPage(1);
     const computedFilters: Record<string, string> = {};
     if (companyQuery && companies.length) {
       const found = companies.find(c => String(c.name ?? '').toLowerCase().includes(companyQuery.toLowerCase()));
@@ -776,7 +855,7 @@ export const SupervisorDashboard = () => {
     setFilterEndDate(undefined);
     setCompanyQuery('');
     setDriverQuery('');
-    setCurrentPage(1);
+    setReceiptsPage(1);
     void loadFinishedDeliveries({});
   };
 
@@ -1151,6 +1230,28 @@ export const SupervisorDashboard = () => {
               <div className="flex h-24 items-center justify-center">
                 <div className="h-6 w-6 animate-spin rounded-full border-2 border-primary/30 border-t-primary" />
               </div>
+              <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between mb-3">
+                <div className="relative w-full md:max-w-xs">
+                  <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                  <Input
+                    value={receiptsSearchTerm}
+                    onChange={(event) => setReceiptsSearchTerm(event.target.value)}
+                    placeholder="Pesquisar NF, cliente ou motorista..."
+                    aria-label="Pesquisar canhotos"
+                    className="pl-9"
+                    disabled={receiptsLoading}
+                  />
+                </div>
+                <div className="flex flex-col gap-1 text-sm text-muted-foreground md:flex-row md:items-center md:gap-3">
+                  <span>
+                    {receiptsTotalFiltered}{' '}
+                    {receiptsTotalFiltered === 1 ? 'entrega encontrada' : 'entregas encontradas'}
+                  </span>
+                  <span>
+                    Pagina {receiptsPage} de {receiptsTotalPages}
+                  </span>
+                </div>
+              </div>
             ) : combinedAlerts.length ? (
               <div className="space-y-3">
                 {combinedAlerts.map((alert) => {
@@ -1187,7 +1288,7 @@ export const SupervisorDashboard = () => {
             </div>
           ) : todayDeliveries.length ? (
             <ScrollArea className="flex-1 max-h-[70vh]">
-              {/* Visualização Mobile (Cartões) */}
+              {/* Visualizacao Mobile (Cartões) */}
               <div className="space-y-3 lg:hidden pr-4">
                 {todayDeliveries.map((delivery) => (
                   <div key={delivery.id} className="rounded-lg border p-3 text-sm">
@@ -1208,7 +1309,7 @@ export const SupervisorDashboard = () => {
                 ))}
               </div>
 
-              {/* Visualização Desktop (Tabela) */}
+              {/* Visualizacao Desktop (Tabela) */}
               <div className="hidden lg:block">
                 <table className="w-full min-w-[720px] text-left text-sm">
                   <thead className="border-b">
@@ -1251,13 +1352,13 @@ export const SupervisorDashboard = () => {
         <DialogContent className="sm:max-w-lg md:max-w-2xl lg:max-w-5xl max-h-[90vh] flex flex-col">
           <DialogHeader>
             <DialogTitle>Entregas Finalizadas e Canhotos</DialogTitle>
-            <DialogDescription>Lista de todas as entregas concluídas.</DialogDescription>
+            <DialogDescription>Lista de todas as entregas concluidas.</DialogDescription>
           </DialogHeader>
           {receiptsLoading ? (
             <div className="flex items-center justify-center py-8">
               <div className="h-6 w-6 animate-spin rounded-full border-2 border-primary/30 border-t-primary" />
             </div>
-          ) : finishedDeliveries.length ? (
+          ) : receiptsList.length ? (
             <div className="flex-1 overflow-hidden">
               {/* Filters row */}
               <div className="flex items-center gap-2 mb-3">
@@ -1279,7 +1380,7 @@ export const SupervisorDashboard = () => {
                 <div className="flex items-center gap-2">
                   <input
                     list="drivers-list"
-                    placeholder="Pesquisar motorista (usuário)..."
+                    placeholder="Pesquisar motorista (usuario)..."
                     value={driverQuery}
                     onChange={e => setDriverQuery(e.target.value)}
                     className="border rounded px-2 py-1"
@@ -1299,84 +1400,139 @@ export const SupervisorDashboard = () => {
                   <Button variant="default" size="sm" onClick={downloadCsv}>Baixar CSV</Button>
                 </div>
               </div>
-              <ScrollArea className="max-h-[60vh]">
-                {/* Visualização Mobile (Cartões) */}
-                <div className="space-y-3 lg:hidden pr-4">
-                  {finishedDeliveries.slice((currentPage - 1) * PER_PAGE, currentPage * PER_PAGE).map((delivery) => (
-                    <div key={delivery.id} className="rounded-lg border p-3 text-sm">
-                      <div className="flex items-start justify-between">
-                        <div>
-                          <p className="font-medium">NF {delivery.nfNumber}</p>
-                          <p className="text-xs text-muted-foreground">{delivery.clientName}</p>
-                        </div>
-                        <p className="text-xs text-muted-foreground">{formatDateTime(delivery.createdAt)}</p>
-                      </div>
-                      <p className="text-xs text-muted-foreground mt-1">Motorista: {delivery.driverName}</p>
-                      <div className="mt-3">
-                        {delivery.receipt_image_url ? (
-                          <Button variant="outline" size="sm" className="w-full" onClick={async () => {
-                            try {
-                              const blobUrl = await apiService.getSecureFile(delivery.receipt_image_url!);
-                              setPreviewUrl(blobUrl || delivery.receipt_image_url!);
-                            } catch (err) {
-                              window.open(delivery.receipt_image_url, '_blank', 'noopener');
-                            }
-                          }}>
-                            Ver Canhoto
-                          </Button>
-                        ) : (
-                          <div className="text-center text-xs text-muted-foreground py-2">Sem Canhoto</div>
-                        )}
-                      </div>
-                    </div>
-                  ))}
+              <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between mb-3">
+                <div className="relative w-full md:max-w-xs">
+                  <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                  <Input
+                    value={receiptsSearchTerm}
+                    onChange={(event) => setReceiptsSearchTerm(event.target.value)}
+                    placeholder="Pesquisar NF, cliente ou motorista..."
+                    aria-label="Pesquisar canhotos"
+                    className="pl-9"
+                    disabled={receiptsLoading}
+                  />
                 </div>
-
-                {/* Visualização Desktop (Tabela) */}
-                <div className="hidden lg:block">
-                  <table className="w-full min-w-[720px] text-left text-sm">
-                    <thead className="border-b">
-                      <tr className="text-muted-foreground">
-                        <th className="py-2 pr-4 font-medium">NF</th>
-                        <th className="py-2 pr-4 font-medium">Cliente</th>
-                        <th className="py-2 pr-4 font-medium">Motorista</th>
-                        <th className="py-2 pr-4 font-medium">Data</th>
-                        <th className="py-2 font-medium">Ação</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {finishedDeliveries.slice((currentPage - 1) * PER_PAGE, currentPage * PER_PAGE).map((delivery) => (
-                        <tr key={delivery.id} className="border-b last:border-none">
-                          <td className="py-2 pr-4 font-medium">{delivery.nfNumber}</td>
-                          <td className="py-2 pr-4">{delivery.clientName}</td>
-                          <td className="py-2 pr-4">{delivery.driverName}</td>
-                          <td className="py-2 pr-4">{formatDateTime(delivery.createdAt)}</td>
-                          <td className="py-2">
+                <div className="flex flex-col gap-1 text-sm text-muted-foreground md:flex-row md:items-center md:gap-3">
+                  <span>
+                    {receiptsTotalFiltered}{' '}
+                    {receiptsTotalFiltered === 1 ? 'entrega encontrada' : 'entregas encontradas'}
+                  </span>
+                  <span>
+                    Pagina {receiptsPage} de {receiptsTotalPages}
+                  </span>
+                </div>
+              </div>
+              {receiptsFilteredDeliveries.length ? (
+                <>
+                  <ScrollArea className="max-h-[60vh]">
+                    {/* Visualizacao Mobile (Cartoes) */}
+                    <div className="space-y-3 pr-4 lg:hidden">
+                      {paginatedReceipts.map((delivery) => (
+                        <div key={delivery.id} className="rounded-lg border p-3 text-sm">
+                          <div className="flex items-start justify-between">
+                            <div>
+                              <p className="font-medium">NF {delivery.nfNumber}</p>
+                              <p className="text-xs text-muted-foreground">{delivery.clientName}</p>
+                            </div>
+                            <p className="text-xs text-muted-foreground">{formatDateTime(delivery.createdAt)}</p>
+                          </div>
+                          <p className="text-xs text-muted-foreground mt-1">Motorista: {delivery.driverName}</p>
+                          <div className="mt-3">
                             {delivery.receipt_image_url ? (
-                              <Button variant="outline" size="sm" onClick={async () => {
-                                const blobUrl = await apiService.getSecureFile(delivery.receipt_image_url!);
-                                setPreviewUrl(blobUrl || delivery.receipt_image_url!);
-                              }}>
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                className="w-full"
+                                onClick={async () => {
+                                  try {
+                                    const blobUrl = await apiService.getSecureFile(delivery.receipt_image_url!);
+                                    setPreviewUrl(blobUrl || delivery.receipt_image_url!);
+                                  } catch (err) {
+                                    window.open(delivery.receipt_image_url, '_blank', 'noopener');
+                                  }
+                                }}
+                              >
                                 Ver Canhoto
                               </Button>
                             ) : (
-                              <span className="text-xs text-muted-foreground">Sem Canhoto</span>
+                              <div className="py-2 text-center text-xs text-muted-foreground">Sem Canhoto</div>
                             )}
-                          </td>
-                        </tr>
+                          </div>
+                        </div>
                       ))}
-                    </tbody>
-                  </table>
-                </div>
-              </ScrollArea>
-            {/* Pagination controls */}
-            <div className="flex items-center justify-between py-2">
-              <div className="text-sm text-muted-foreground">Mostrando {(currentPage-1)*PER_PAGE + 1} - {Math.min(currentPage*PER_PAGE, finishedDeliveries.length)} de {finishedDeliveries.length}</div>
-              <div className="space-x-2">
-                <Button size="sm" variant="outline" onClick={() => setCurrentPage(p => Math.max(1, p-1))} disabled={currentPage === 1}>Anterior</Button>
-                <Button size="sm" variant="outline" onClick={() => setCurrentPage(p => (p * PER_PAGE < finishedDeliveries.length ? p + 1 : p))} disabled={currentPage * PER_PAGE >= finishedDeliveries.length}>Próxima</Button>
-              </div>
-            </div>
+                    </div>
+
+                    {/* Visualizacao Desktop (Tabela) */}
+                    <div className="hidden lg:block">
+                      <table className="w-full min-w-[720px] text-left text-sm">
+                        <thead className="border-b">
+                          <tr className="text-muted-foreground">
+                            <th className="py-2 pr-4 font-medium">NF</th>
+                            <th className="py-2 pr-4 font-medium">Cliente</th>
+                            <th className="py-2 pr-4 font-medium">Motorista</th>
+                            <th className="py-2 pr-4 font-medium">Data</th>
+                            <th className="py-2 font-medium">Acao</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {paginatedReceipts.map((delivery) => (
+                            <tr key={delivery.id} className="border-b last:border-none">
+                              <td className="py-2 pr-4 font-medium">{delivery.nfNumber}</td>
+                              <td className="py-2 pr-4">{delivery.clientName}</td>
+                              <td className="py-2 pr-4">{delivery.driverName}</td>
+                              <td className="py-2 pr-4">{formatDateTime(delivery.createdAt)}</td>
+                              <td className="py-2">
+                                {delivery.receipt_image_url ? (
+                                  <Button
+                                    variant="outline"
+                                    size="sm"
+                                    onClick={async () => {
+                                      const blobUrl = await apiService.getSecureFile(delivery.receipt_image_url!);
+                                      setPreviewUrl(blobUrl || delivery.receipt_image_url!);
+                                    }}
+                                  >
+                                    Ver Canhoto
+                                  </Button>
+                                ) : (
+                                  <span className="text-xs text-muted-foreground">Sem Canhoto</span>
+                                )}
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  </ScrollArea>
+                  <div className="flex flex-col gap-2 py-2 text-sm text-muted-foreground md:flex-row md:items-center md:justify-between">
+                    <p>
+                      Mostrando {receiptsRangeStart}-{receiptsRangeEnd} de {receiptsTotalFiltered}{' '}
+                      {receiptsTotalFiltered === 1 ? 'entrega' : 'entregas'}
+                    </p>
+                    <div className="flex items-center gap-2">
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => setReceiptsPage((prev) => Math.max(1, prev - 1))}
+                        disabled={receiptsPage <= 1}
+                      >
+                        Anterior
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => setReceiptsPage((prev) => Math.min(receiptsTotalPages, prev + 1))}
+                        disabled={receiptsPage >= receiptsTotalPages}
+                      >
+                        Proxima
+                      </Button>
+                    </div>
+                  </div>
+                </>
+              ) : (
+                <p className="py-4 text-sm text-muted-foreground">
+                  Nenhuma entrega encontrada para a pesquisa.
+                </p>
+              )}
             </div>
           ) : (
             <p className="py-4 text-sm text-muted-foreground">Nenhuma entrega finalizada encontrada.</p>
@@ -1388,7 +1544,7 @@ export const SupervisorDashboard = () => {
                 <DialogHeader className="space-y-1">
                   <DialogTitle className="text-lg sm:text-xl">Visualizar Canhoto</DialogTitle>
                   <DialogDescription className="text-xs sm:text-sm">
-                    Ajuste com gesto de pinça ou rolagem para inspecionar os detalhes.
+                    Ajuste com gesto de pinca ou rolagem para inspecionar os detalhes.
                   </DialogDescription>
                 </DialogHeader>
                 <div className="flex items-center justify-center">
@@ -1414,7 +1570,6 @@ export const SupervisorDashboard = () => {
           )}
         </DialogContent>
       </Dialog>
-
       <Dialog open={showDriverReportModal} onOpenChange={handleDriverReportModalChange}>
           <DialogContent className="sm:max-w-lg md:max-w-2xl lg:max-w-6xl overflow-y-auto max-h-[80vh]">
           <DialogHeader className="space-y-2">
