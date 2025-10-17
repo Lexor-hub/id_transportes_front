@@ -951,7 +951,7 @@ export const SupervisorDashboard = () => {
 
 
   return (
-    <div className="container mx-auto px-4 md:px-6 py-6 space-y-6 max-h-[80vh] overflow-y-auto">
+    <div className="container mx-auto px-4 md:px-6 py-6 space-y-6 max-h-[60vh] overflow-y-auto">
         <div className="flex items-center justify-between">
           <div>
             <h1 className="text-3xl font-bold tracking-tight">Dashboard Operacional</h1>
