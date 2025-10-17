@@ -1339,41 +1339,7 @@ export const SupervisorDashboard = () => {
           ) : receiptsList.length ? (
             <div className="flex-1 overflow-hidden">
               {/* Filters row */}
-              <div className="flex items-center gap-2 mb-3">
-                <div className="flex items-center gap-2">
-                  <input
-                    list="companies-list"
-                    placeholder="Pesquisar empresa..."
-                    value={companyQuery}
-                    onChange={e => setCompanyQuery(e.target.value)}
-                    className="border rounded px-2 py-1"
-                  />
-                  <datalist id="companies-list">
-                    {companies.map(c => (
-                      <option key={c.id} value={String(c.name)} />
-                    ))}
-                  </datalist>
-                </div>
-
-                <div className="flex items-center gap-2">
-                  <input
-                    list="drivers-list"
-                    placeholder="Pesquisar motorista (usuario)..."
-                    value={driverQuery}
-                    onChange={e => setDriverQuery(e.target.value)}
-                    className="border rounded px-2 py-1"
-                  />
-                  <datalist id="drivers-list">
-                    {drivers.map(d => (
-                      // show username if available, otherwise show display name
-                      <option key={d.id} value={String(d.username || d.name)} />
-                    ))}
-                  </datalist>
-                </div>
-                <input type="date" value={filterStartDate ?? ''} onChange={e => setFilterStartDate(e.target.value || undefined)} className="border rounded px-2 py-1" />
-                <input type="date" value={filterEndDate ?? ''} onChange={e => setFilterEndDate(e.target.value || undefined)} className="border rounded px-2 py-1" />
-                <Button variant="outline" size="sm" onClick={applyFilters}>Filtrar</Button>
-                <Button variant="ghost" size="sm" onClick={clearFilters}>Limpar</Button>
+              <div className="flex items-center justify-end gap-2 mb-3">
                 <div className="ml-auto">
                   <Button variant="default" size="sm" onClick={downloadCsv}>Baixar CSV</Button>
                 </div>
@@ -1402,7 +1368,7 @@ export const SupervisorDashboard = () => {
               </div>
               {receiptsFilteredDeliveries.length ? (
                 <>
-                  <ScrollArea className="max-h-[60vh]">
+                  <ScrollArea className="max-h-[80vh]">
                     {/* Visualizacao Mobile (Cartoes) */}
                     <div className="space-y-3 pr-4 lg:hidden">
                       {paginatedReceipts.map((delivery) => (
