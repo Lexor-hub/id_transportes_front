@@ -1176,41 +1176,65 @@ export const SupervisorDashboard = () => {
       </div>
       
       <Dialog open={showDeliveriesModal} onOpenChange={handleDeliveriesModalChange}>
-        <DialogContent className="sm:max-w-4xl">
+        <DialogContent className="sm:max-w-lg md:max-w-2xl lg:max-w-5xl max-h-[90vh] flex flex-col">
           <DialogHeader>
             <DialogTitle>Entregas do dia</DialogTitle>
             <DialogDescription>Resumo das entregas cadastradas por todos os motoristas hoje.</DialogDescription>
           </DialogHeader>
           {deliveriesLoading ? (
-            <div className="flex items-center justify-center py-8">
+            <div className="flex flex-1 items-center justify-center py-8">
               <div className="h-6 w-6 animate-spin rounded-full border-2 border-primary/30 border-t-primary" />
             </div>
           ) : todayDeliveries.length ? (
-            <ScrollArea className="max-h-[60vh]">
-              <table className="w-full min-w-[640px] text-left text-sm">
-                <thead className="border-b">
-                  <tr className="text-muted-foreground">
-                    <th className="py-2 pr-4 font-medium">NF</th>
-                    <th className="py-2 pr-4 font-medium">Cliente</th>
-                    <th className="py-2 pr-4 font-medium">Motorista</th>
-                    <th className="py-2 pr-4 font-medium">Status</th>
-                    <th className="py-2 pr-4 font-medium">Horário</th>
-                    <th className="py-2 font-medium">Endereço</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {todayDeliveries.map((delivery) => (
-                    <tr key={delivery.id} className="border-b last:border-none">
-                      <td className="py-2 pr-4 font-medium">{delivery.nfNumber}</td>
-                      <td className="py-2 pr-4">{delivery.clientName}</td>
-                      <td className="py-2 pr-4">{delivery.driverName}</td>
-                      <td className="py-2 pr-4">{delivery.statusLabel}</td>
-                      <td className="py-2 pr-4">{formatDateTime(delivery.createdAt)}</td>
-                      <td className="py-2">{delivery.address}</td>
+            <ScrollArea className="flex-1 max-h-[70vh]">
+              {/* Visualização Mobile (Cartões) */}
+              <div className="space-y-3 lg:hidden pr-4">
+                {todayDeliveries.map((delivery) => (
+                  <div key={delivery.id} className="rounded-lg border p-3 text-sm">
+                    <div className="flex items-start justify-between">
+                      <div>
+                        <p className="font-medium">NF {delivery.nfNumber}</p>
+                        <p className="text-xs text-muted-foreground">{delivery.clientName}</p>
+                      </div>
+                      <p className="text-xs text-muted-foreground">{formatDateTime(delivery.createdAt)}</p>
+                    </div>
+                    <p className="text-xs text-muted-foreground mt-1">Motorista: {delivery.driverName}</p>
+                    <p className="text-xs text-muted-foreground mt-1">Status: {delivery.statusLabel}</p>
+                    <p className="text-xs text-muted-foreground mt-2 flex items-start gap-2">
+                      <MapPin className="h-3 w-3 mt-0.5 flex-shrink-0" />
+                      <span>{delivery.address}</span>
+                    </p>
+                  </div>
+                ))}
+              </div>
+
+              {/* Visualização Desktop (Tabela) */}
+              <div className="hidden lg:block">
+                <table className="w-full min-w-[720px] text-left text-sm">
+                  <thead className="border-b">
+                    <tr className="text-muted-foreground">
+                      <th className="py-2 pr-4 font-medium">NF</th>
+                      <th className="py-2 pr-4 font-medium">Cliente</th>
+                      <th className="py-2 pr-4 font-medium">Motorista</th>
+                      <th className="py-2 pr-4 font-medium">Status</th>
+                      <th className="py-2 pr-4 font-medium">Horário</th>
+                      <th className="py-2 font-medium">Endereço</th>
                     </tr>
-                  ))}
-                </tbody>
-              </table>
+                  </thead>
+                  <tbody>
+                    {todayDeliveries.map((delivery) => (
+                      <tr key={delivery.id} className="border-b last:border-none">
+                        <td className="py-2 pr-4 font-medium">{delivery.nfNumber}</td>
+                        <td className="py-2 pr-4">{delivery.clientName}</td>
+                        <td className="py-2 pr-4">{delivery.driverName}</td>
+                        <td className="py-2 pr-4">{delivery.statusLabel}</td>
+                        <td className="py-2 pr-4">{formatDateTime(delivery.createdAt)}</td>
+                        <td className="py-2">{delivery.address}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
             </ScrollArea>
           ) : (
             <p className="py-4 text-sm text-muted-foreground">Nenhuma entrega cadastrada hoje até o momento.</p>
@@ -1486,7 +1510,7 @@ export const SupervisorDashboard = () => {
               {paginatedDrivers.length ? (
                 <>
                   {/* INÍCIO DA CORREÇÃO: Barra de Rolagem para a visualização mobile */}
-                  <ScrollArea className="max-h-[60vh] w-full lg:hidden">
+                  <ScrollArea className="max-h-[70vh] w-full lg:hidden">
                     <div className="space-y-3 pr-4"> {/* Adicionado padding à direita para a barra de rolagem */}
                       {paginatedDrivers.map((driver) => {
                         const vehiclesTodayLabel = driver.vehiclesToday.length
