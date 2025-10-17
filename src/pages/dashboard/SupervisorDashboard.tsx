@@ -1327,7 +1327,7 @@ export const SupervisorDashboard = () => {
       </Dialog>
 
       <Dialog open={showReceiptsModal} onOpenChange={handleReceiptsModalChange}>
-        <DialogContent className="sm:max-w-lg md:max-w-2xl lg:max-w-5xl max-h-[90vh] flex flex-col">
+        <DialogContent className="sm:max-w-lg md:max-w-2xl lg:max-w-5xl max-h-[90vh] flex flex-col overflow-x-auto">
           <DialogHeader>
             <DialogTitle>Entregas Finalizadas e Canhotos</DialogTitle>
             <DialogDescription>Lista de todas as entregas concluidas.</DialogDescription>
@@ -1368,7 +1368,7 @@ export const SupervisorDashboard = () => {
               </div>
               {receiptsFilteredDeliveries.length ? (
                 <>
-                  <ScrollArea className="max-h-[80vh]">
+                  <ScrollArea className="max-h-[90vh] w-full overflow-x-auto">
                     {/* Visualizacao Mobile (Cartoes) */}
                     <div className="space-y-3 pr-4 lg:hidden">
                       {paginatedReceipts.map((delivery) => (
