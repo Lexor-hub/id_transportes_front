@@ -1327,7 +1327,7 @@ export const SupervisorDashboard = () => {
       </Dialog>
 
       <Dialog open={showReceiptsModal} onOpenChange={handleReceiptsModalChange}>
-        <DialogContent className="sm:max-w-lg md:max-w-2xl lg:max-w-5xl max-h-[90vh] flex flex-col overflow-x-auto">
+        <DialogContent className="sm:max-w-lg md:max-w-2xl lg:max-w-6xl overflow-y-auto max-h-[80vh]">
           <DialogHeader>
             <DialogTitle>Entregas Finalizadas e Canhotos</DialogTitle>
             <DialogDescription>Lista de todas as entregas concluidas.</DialogDescription>
