@@ -951,7 +951,7 @@ export const SupervisorDashboard = () => {
 
 
   return (
-    <div className="container mx-auto px-4 md:px-6 py-6 space-y-6 max-h-[60vh] overflow-y-auto">
+    <div className="container mx-auto px-4 md:px-6 py-6 space-y-6 overflow-y-auto">
         <div className="flex items-center justify-between">
           <div>
             <h1 className="text-3xl font-bold tracking-tight">Dashboard Operacional</h1>
@@ -1448,7 +1448,7 @@ export const SupervisorDashboard = () => {
                           : 'Sem registro';
 
                         return (
-                          <div key={driver.driverKey} className="space-y-2 rounded-lg border p-3">
+                          <div key={driver.driverKey} className="space-y-2 rounded-lg border p-3 max-h-[60vh] overflow-y-auto">
                             <div className="flex items-start justify-between gap-2">
                               <div>
                                 <p className="font-medium">{driver.name}</p>
