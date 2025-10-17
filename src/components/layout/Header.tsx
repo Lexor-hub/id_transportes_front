@@ -218,7 +218,7 @@ export const Header = () => {
                 </Avatar>
               </Button>
             </DropdownMenuTrigger>
-            <DropdownMenuContent className="w-56" align="end">
+            <DropdownMenuContent className="w-56 bg-white" align="end">
               <DropdownMenuItem className="flex items-center gap-2 min-h-[44px] text-base">
                 <User className="h-4 w-4" />
                 <span>Perfil</span>
@@ -229,10 +229,6 @@ export const Header = () => {
                   <span>{company.name}</span>
                 </DropdownMenuItem>
               )}
-              <DropdownMenuItem className="flex items-center gap-2 min-h-[44px] text-base">
-                <Settings className="h-4 w-4" />
-                <span>Configurações</span>
-              </DropdownMenuItem>
               <DropdownMenuSeparator />
               <DropdownMenuItem 
                 className="flex items-center gap-2 text-destructive min-h-[44px] text-base"
