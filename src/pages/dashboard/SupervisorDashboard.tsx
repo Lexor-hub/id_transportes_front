@@ -1486,7 +1486,7 @@ export const SupervisorDashboard = () => {
               {paginatedDrivers.length ? (
                 <>
                   {/* INÍCIO DA CORREÇÃO: Barra de Rolagem para a visualização mobile */}
-                  <ScrollArea className="max-h-[20vh] w-full lg:hidden">
+                  <ScrollArea className="max-h-[60vh] w-full lg:hidden">
                     <div className="space-y-3 pr-4"> {/* Adicionado padding à direita para a barra de rolagem */}
                       {paginatedDrivers.map((driver) => {
                         const vehiclesTodayLabel = driver.vehiclesToday.length
