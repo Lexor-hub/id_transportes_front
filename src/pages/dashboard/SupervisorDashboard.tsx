@@ -1512,7 +1512,7 @@ export const SupervisorDashboard = () => {
                   </ScrollArea>
                   
                   {/* Controles de Paginação (continuam os mesmos) */}
-                  <div className="flex flex-col items-center justify-between gap-3 border-t pt-3 text-sm lg:flex-row">
+                  <div className="flex flex-col items-center justify-between gap-3 border-t pt-3 text-sm lg:flex-row max-h-[70vh] overflow-y-auto" >
                     <p className="text-muted-foreground">
                       {driverReportTotalFiltered
                         ? `Mostrando ${driverReportRangeStart}-${driverReportRangeEnd} de ${driverReportTotalFiltered} ${
