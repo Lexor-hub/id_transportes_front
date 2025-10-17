@@ -1346,8 +1346,8 @@ export const SupervisorDashboard = () => {
       </Dialog>
 
       <Dialog open={showDriverReportModal} onOpenChange={handleDriverReportModalChange}>
-          <DialogContent className="sm:max-w-6xl flex flex-col max-h-[80vh]">
-          <DialogHeader className="flex-shrink-0">
+          <DialogContent className="sm:max-w-6xl">
+          <DialogHeader className="space-y-2">
             {/* ... (cabeçalho do modal continua o mesmo) ... */}
             <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
               <div className="space-y-1">
@@ -1386,7 +1386,7 @@ export const SupervisorDashboard = () => {
               <div className="h-6 w-6 animate-spin rounded-full border-2 border-primary/30 border-t-primary" />
             </div>
           ) : driverReportData ? (
-            <div className="flex flex-1 flex-col space-y-4 overflow-hidden">
+            <div className="space-y-4">
               {/* ... (blocos de stats e destaque do dia continuam os mesmos) ... */}
               <div className="grid gap-3 sm:grid-cols-3">
                 <div className="rounded-lg border p-3">
@@ -1520,7 +1520,7 @@ export const SupervisorDashboard = () => {
                           }`
                         : 'Nenhum motorista encontrado'}
                     </p>
-                    <div className="flex-shrink-0 border-t pt-3">
+                    <div className="flex items-center gap-2">
                       <Button
                         variant="outline"
                         size="sm"
