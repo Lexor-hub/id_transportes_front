@@ -438,7 +438,7 @@ export const Users = () => {
                   <SelectTrigger>
                     <SelectValue placeholder="Selecione o perfil" />
                   </SelectTrigger>
-                  <SelectContent>
+                  <SelectContent className="bg-background">
                     {/* 🔒 Mostra apenas os tipos de usuário permitidos para o usuário logado */}
                     {getAllowedUserTypes().map((userType) => (
                       <SelectItem key={userType.value} value={userType.value}>
@@ -467,7 +467,7 @@ export const Users = () => {
                   <SelectTrigger>
                     <SelectValue placeholder={companiesLoading ? "Carregando empresas..." : "Selecione a empresa"} />
                   </SelectTrigger>
-                  <SelectContent>
+                  <SelectContent className="bg-background">
                     {companies.map((company) => (
                       <SelectItem key={company.id} value={company.id}>
                         {company.name} ({company.domain})
@@ -638,7 +638,7 @@ export const Users = () => {
                 <SelectTrigger>
                   <SelectValue placeholder="Selecione o perfil" />
                 </SelectTrigger>
-                <SelectContent>
+                <SelectContent className="bg-background">
                   {/* 🔒 Mostra apenas os tipos de usuário permitidos para o usuário logado */}
                   {getAllowedUserTypes().map((userType) => (
                     <SelectItem key={userType.value} value={userType.value}>

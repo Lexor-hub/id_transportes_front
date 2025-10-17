@@ -1079,14 +1079,17 @@ export const SupervisorDashboard = () => {
 
   return (
     <div className="container mx-auto px-4 md:px-6 py-6 space-y-6 overflow-y-auto">
-        <div className="flex items-center justify-between">
+        <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
           <div>
             <h1 className="text-3xl font-bold tracking-tight">Dashboard Operacional</h1>
             <p className="text-muted-foreground mt-1">
               Monitoramento e controle das operações - {new Date().toLocaleDateString('pt-BR')}
             </p>
           </div>
-          <Button className="bg-gradient-primary" onClick={() => handleDeliveriesModalChange(true)}>
+          <Button
+            className="bg-gradient-primary self-start text-sm h-9 px-3 sm:self-auto sm:text-base sm:h-10 sm:px-4"
+            onClick={() => handleDeliveriesModalChange(true)}
+          >
             <ClipboardList className="mr-2 h-4 w-4" />
             Entregas do dia
           </Button>

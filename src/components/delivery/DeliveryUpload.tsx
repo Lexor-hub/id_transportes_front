@@ -135,7 +135,7 @@ const readInitialCameraPermission = (): CameraPermissionState => {
       return stored;
     }
   } catch (error) {
-    console.warn('[DeliveryUpload] Não foi possível ler a permissão da câmera armazenada:', error); // Corrigido
+    console.warn('[DeliveryUpload] Não foi possível ler a permissão da câmera armazenada:', error); 
   }
   return 'unknown';
 };
@@ -175,7 +175,7 @@ interface DeliveryUploadProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onSuccess?: () => void;
-  initialData?: DeliveryUploadInitialData; // Corrigido
+  initialData?: DeliveryUploadInitialData; 
   // Propriedade adicionada para controlar a exibiï¿½ï¿½o do seletor de motorista.
   allowDriverSelection?: boolean;
 }
@@ -902,7 +902,7 @@ const handleDocumentAIData = (input: DocumentAIParsedPayload) => {
       stream.getTracks().forEach((track) => track.stop());
     } catch (error) {
        // Correção: Trata erros de permissão de forma mais específica
-      if (error instanceof Error && (error.name === 'NotAllowedError' || error.name === 'PermissionDeniedError')) { // Corrigido
+      if (error instanceof Error && (error.name === 'NotAllowedError' || error.name === 'PermissionDeniedError')) { 
         console.warn('Acesso à câmera negado pelo usuário ou navegador.');
         toast({
           title: 'Acesso à câmera negado',
