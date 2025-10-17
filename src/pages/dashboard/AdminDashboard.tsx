@@ -287,7 +287,7 @@ export const AdminDashboard = () => {
             Visão geral do sistema de entregas - {new Date().toLocaleDateString('pt-BR')}
           </p>
         </div>
-        <Button className="bg-gradient-primary" onClick={() => navigate('/dashboard/relatorios')}>
+        <Button className="bg-gradient-primary text-sm h-9 px-3 sm:text-base sm:h-10 sm:px-4" onClick={() => navigate('/dashboard/relatorios')}>
           <BarChart3 className="mr-2 h-4 w-4" />
           Relatórios Completos
         </Button>
@@ -336,14 +336,14 @@ export const AdminDashboard = () => {
             </CardTitle>
           </CardHeader>
           <CardContent className="grid gap-3">
-            <Button variant="outline" className="justify-start h-12" onClick={() => navigate('/dashboard/usuarios')}>
+            <Button variant="outline" className="justify-start h-10 text-sm sm:h-12 sm:text-base" onClick={() => navigate('/dashboard/usuarios')}>
               <Users className="mr-3 h-4 w-4" />
               <div className="text-left">
                 <div className="font-medium">Gerenciar Usuários</div>
                 <div className="text-xs text-muted-foreground">Cadastrar e editar usuários</div>
               </div>
             </Button>
-            <Button variant="outline" className="justify-start h-12" onClick={() => navigate('/dashboard/veiculos')}>
+            <Button variant="outline" className="justify-start h-10 text-sm sm:h-12 sm:text-base" onClick={() => navigate('/dashboard/veiculos')}>
               <Truck className="mr-3 h-4 w-4" />
               <div className="text-left">
                 <div className="font-medium">Cadastrar Veículos</div>
@@ -352,7 +352,7 @@ export const AdminDashboard = () => {
             </Button>
             <Button 
               variant="outline" 
-              className="justify-start h-12" 
+              className="justify-start h-10 text-sm sm:h-12 sm:text-base" 
               onClick={() => setShowDeliveryUpload(true)}
             >
               <Package className="mr-3 h-4 w-4" />
@@ -361,7 +361,7 @@ export const AdminDashboard = () => {
                 <div className="text-xs text-muted-foreground">Cadastrar nova entrega</div>
               </div>
             </Button>
-            <Button variant="outline" className="justify-start h-12" onClick={() => navigate('/dashboard/rastreamento')}>
+            <Button variant="outline" className="justify-start h-10 text-sm sm:h-12 sm:text-base" onClick={() => navigate('/dashboard/rastreamento')}>
               <MapPin className="mr-3 h-4 w-4" />
               <div className="text-left">
                 <div className="font-medium">Rastreamento</div>
@@ -371,7 +371,7 @@ export const AdminDashboard = () => {
             {/* Botão adicionado para buscar canhotos */}
             <Button 
               variant="outline" 
-              className="justify-start h-12" 
+              className="justify-start h-10 text-sm sm:h-12 sm:text-base" 
               onClick={() => handleReceiptsModalChange(true)}
             >
               <Search className="mr-3 h-4 w-4" />

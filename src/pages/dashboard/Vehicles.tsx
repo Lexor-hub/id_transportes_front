@@ -172,17 +172,17 @@ const Vehicles: React.FC = () => {
   return (
     <>
       <div className="container mx-auto px-4 md:px-6 py-6">
-        <div className="flex items-center justify-between mb-4">
+        <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between mb-4">
           <h1 className="text-2xl font-bold">Gerenciamento de Veículos</h1>
-          <form onSubmit={e => { e.preventDefault(); }} className="flex gap-2">
+          <div className="flex flex-col gap-2 md:flex-row md:items-center">
             <Input
               placeholder="Buscar por placa ou modelo"
               value={search}
               onChange={e => setSearch(e.target.value)}
-              className="w-64"
+              className="w-full md:w-64"
             />
             <Button type="button" onClick={handleOpenModal}>Novo Veículo</Button>
-          </form>
+          </div>
         </div>
         {loading ? (
           <p>Carregando veículos...</p>

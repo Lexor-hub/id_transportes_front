@@ -461,7 +461,7 @@ export const DeliveryUpload: React.FC<DeliveryUploadProps> = ({
   open,
   onOpenChange,
   onSuccess,
-  initialData, // Corrigido
+  initialData, 
   allowDriverSelection = false // Valor padrï¿½o ï¿½ false
 }) => {
   const { toast } = useToast();
@@ -682,7 +682,7 @@ const handleDocumentAIData = (input: DocumentAIParsedPayload) => {
     console.log('Rótulos Document AI recebidos:', rawFields);
   }
   
-  const rawTextData = extractFieldsFromRawText(rawText); // Corrigido
+  const rawTextData = extractFieldsFromRawText(rawText); 
 
   const newStructuredData = createEmptyStructuredData();
   newStructuredData.raw_text = rawText;
@@ -693,13 +693,31 @@ const handleDocumentAIData = (input: DocumentAIParsedPayload) => {
   // Mapeamento simplificado dos dados recebidos do backend
   const data = (detail.extractedData || {}) as Record<string, string>;
 
-  const nfNumber = data.nro ?? data.nfNumber ?? '';
-  const chave = data.chave ?? data.nfeKey ?? '';
-  const clientName = data.receiver_name ?? data.clientName ?? '';
-  const productValue = data.total_amount ?? data.productValue ?? data.invoiceTotalValue ?? '';
-  const invoiceTotalValue = data.invoiceTotalValue ?? data.total_amount ?? data.productValue ?? '';
-  const issueDate = data.invoice_date ?? data.issueDate ?? '';
-  const departureDate = data.saida ?? data.departureDate ?? '';
+  const rawNfNumber = takeFirstFromRaw(rawFields, 'nro', 'numero nf', 'numero', 'invoice_number', 'invoice_id', 'document_number');
+  const rawAccessKey = takeFirstFromRaw(rawFields, 'chave', 'chave de acesso', 'chave_acesso', 'chave nfe', 'chave_nfe', 'nfe key', 'nfe_key', 'access key');
+  const rawClientName = takeFirstFromRaw(rawFields, 'receiver_name', 'nome do cliente', 'cliente', 'customer_name', 'destinatario');
+  const rawProductValue = takeFirstFromRaw(rawFields, 'total_amount', 'valor_total_produtos', 'valor total produtos', 'subtotal');
+  const rawInvoiceTotal = takeFirstFromRaw(rawFields, 'valor_total_nota', 'valor nota', 'amount_due', 'grand_total');
+  const rawIssueDate = takeFirstFromRaw(rawFields, 'invoice_date', 'issue_date', 'data_emissao', 'emissao', 'data de emissao');
+  const rawDepartureDate = takeFirstFromRaw(
+    rawFields,
+    'saida',
+    'data_saida',
+    'data saida',
+    'data de saida',
+    'data de saida/entrada',
+    'saida/entrada',
+    'ship_date',
+    'shipment_date'
+  );
+
+  const nfNumber = sanitizeDocumentNumber(data.nro ?? data.nfNumber ?? rawNfNumber ?? '');
+  const chave = sanitizeDocumentNumber(data.chave ?? data.nfeKey ?? rawAccessKey ?? '');
+  const clientName = (data.receiver_name ?? data.clientName ?? rawClientName ?? '').trim();
+  const productValue = data.total_amount ?? data.productValue ?? data.invoiceTotalValue ?? rawProductValue ?? '';
+  const invoiceTotalValue = data.invoiceTotalValue ?? data.total_amount ?? data.productValue ?? rawInvoiceTotal ?? '';
+  const issueDate = data.invoice_date ?? data.issueDate ?? rawIssueDate ?? '';
+  const departureDate = data.saida ?? data.departureDate ?? rawDepartureDate ?? '';
 
   newStructuredData.nf_data.numero = nfNumber;
   newStructuredData.nf_data.chave = chave;
@@ -924,7 +942,7 @@ const handleDocumentAIData = (input: DocumentAIParsedPayload) => {
   const handleRequestCameraPermission = async () => {
     setCameraPermissionLoading(true);
     try {
-      if (!navigator?.mediaDevices?.getUserMedia) { // Corrigido
+      if (!navigator?.mediaDevices?.getUserMedia) { 
         throw new Error('API de camera indisponivel neste dispositivo');
       }
       const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } });
@@ -1085,7 +1103,7 @@ const handleSaveDelivery = async () => {
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <Card className="cursor-pointer hover:bg-accent/50 transition-colors" onClick={() => fileInputRef.current?.click()}> // Corrigido
+              <Card className="cursor-pointer hover:bg-accent/50 transition-colors" onClick={() => fileInputRef.current?.click()}> 
                 <CardContent className="flex flex-col items-center justify-center p-6 space-y-4">
                   <div className="w-16 h-16 bg-primary/10 rounded-full flex items-center justify-center">
                     <Upload className="h-8 w-8 text-primary" />
@@ -1185,7 +1203,7 @@ const handleSaveDelivery = async () => {
 
             {allowDriverSelection && (
               <div className="space-y-2">
-                <h3 className="text-sm font-semibold text-muted-foreground">Atribuir a Motorista</h3> // Corrigido
+                <h3 className="text-sm font-semibold text-muted-foreground">Atribuir a Motorista</h3> 
                 <select
                   className="h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
                   value={selectedDriverUserId || ''}
