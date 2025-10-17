@@ -133,7 +133,6 @@ const DRIVER_REPORT_PAGE_SIZE_DESKTOP = 10;
 const DRIVER_REPORT_PAGE_SIZE_MOBILE = 3;
 const DRIVER_REPORT_MOBILE_BREAKPOINT = 1024; // matches tailwind lg breakpoint
 const EMPTY_DRIVER_REPORT_LIST: DriverReportEntry[] = [];
-const EMPTY_DRIVER_REPORT_LIST: DriverReportEntry[] = [];
 
 const formatDeliveryStatus = (status?: string, hasReceipt?: boolean) => {
   const normalized = (status || '').toUpperCase();
