@@ -693,13 +693,21 @@ const handleDocumentAIData = (input: DocumentAIParsedPayload) => {
   // Mapeamento simplificado dos dados recebidos do backend
   const data = (detail.extractedData || {}) as Record<string, string>;
 
-  newStructuredData.nf_data.numero = data.nfNumber || '';
-  newStructuredData.nf_data.chave = data.nfeKey || '';
-  newStructuredData.destinatario.razao_social = data.clientName || '';
-  newStructuredData.valores.valor_total_produtos = data.productValue || '';
-  newStructuredData.valores.valor_total_nota = data.invoiceTotalValue || '';
-  newStructuredData.nf_data.data_emissao = normalizeDateValue(data.issueDate);
-  newStructuredData.nf_data.data_saida = normalizeDateValue(data.departureDate);
+  const nfNumber = data.nro ?? data.nfNumber ?? '';
+  const chave = data.chave ?? data.nfeKey ?? '';
+  const clientName = data.receiver_name ?? data.clientName ?? '';
+  const productValue = data.total_amount ?? data.productValue ?? data.invoiceTotalValue ?? '';
+  const invoiceTotalValue = data.invoiceTotalValue ?? data.total_amount ?? data.productValue ?? '';
+  const issueDate = data.invoice_date ?? data.issueDate ?? '';
+  const departureDate = data.saida ?? data.departureDate ?? '';
+
+  newStructuredData.nf_data.numero = nfNumber;
+  newStructuredData.nf_data.chave = chave;
+  newStructuredData.destinatario.razao_social = clientName;
+  newStructuredData.valores.valor_total_produtos = productValue;
+  newStructuredData.valores.valor_total_nota = invoiceTotalValue;
+  newStructuredData.nf_data.data_emissao = normalizeDateValue(issueDate);
+  newStructuredData.nf_data.data_saida = normalizeDateValue(departureDate);
 
   // Preenche o valor total da nota com o valor dos produtos se o primeiro estiver vazio
   if (!newStructuredData.valores.valor_total_nota && newStructuredData.valores.valor_total_produtos) {
