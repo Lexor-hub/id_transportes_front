@@ -311,7 +311,7 @@ export const DriverForm = ({ open, onOpenChange, onSuccess }: DriverFormProps) =
             />
           </div>
 
-          <div className="flex justify-end space-x-2 pt-4">
+          <div className="flex justify-end space-x-2 pt-4 bg-white">
             <Button
               type="button"
               variant="outline"
