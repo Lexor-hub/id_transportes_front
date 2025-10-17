@@ -1474,7 +1474,7 @@ export const SupervisorDashboard = () => {
 
                   {/* Tabela para Telas Grandes (continua igual) */}
                   <ScrollArea className="hidden max-h-[70vh] w-full overflow-x-auto lg:block">
-                    <table className="w-full min-w-[720px] text-left text-sm">
+                    <table className="w-full min-w-[720px] text-left text-sm  max-h-[70vh] overflow-y-auto">
                         {/* ... Thead e Tbody da tabela permanecem os mesmos ... */}
                         <thead className="border-b">
                           <tr className="text-muted-foreground">
