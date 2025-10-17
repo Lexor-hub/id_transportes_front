@@ -1346,7 +1346,7 @@ export const SupervisorDashboard = () => {
       </Dialog>
 
       <Dialog open={showDriverReportModal} onOpenChange={handleDriverReportModalChange}>
-          <DialogContent className="sm:max-w-lg md:max-w-2xl lg:max-w-6xl">
+          <DialogContent className="sm:max-w-lg md:max-w-2xl lg:max-w-6xl overflow-y-auto max-h-[60vh]">
           <DialogHeader className="space-y-2">
             {/* ... (cabeçalho do modal continua o mesmo) ... */}
             <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
@@ -1440,7 +1440,7 @@ export const SupervisorDashboard = () => {
               {paginatedDrivers.length ? (
                 <>
                   {/* INÍCIO DA CORREÇÃO: Barra de Rolagem para a visualização mobile */}
-                  <ScrollArea className="max-h-[50vh] w-full lg:hidden">
+                  <ScrollArea className="max-h-[20vh] w-full lg:hidden">
                     <div className="space-y-3 pr-4"> {/* Adicionado padding à direita para a barra de rolagem */}
                       {paginatedDrivers.map((driver) => {
                         const vehiclesTodayLabel = driver.vehiclesToday.length
@@ -1473,7 +1473,7 @@ export const SupervisorDashboard = () => {
                   {/* FIM DA CORREÇÃO */}
 
                   {/* Tabela para Telas Grandes (continua igual) */}
-                  <ScrollArea className="hidden max-h-[60vh] w-full overflow-x-auto lg:block">
+                  <ScrollArea className="hidden max-h-[30vh] w-full overflow-x-auto lg:block">
                     <table className="w-full min-w-[720px] text-left text-sm">
                         {/* ... Thead e Tbody da tabela permanecem os mesmos ... */}
                         <thead className="border-b">
