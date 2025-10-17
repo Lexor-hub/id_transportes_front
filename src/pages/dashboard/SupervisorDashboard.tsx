@@ -129,7 +129,10 @@ const ALERT_STYLE = {
   },
 } as const;
 
-const DRIVER_REPORT_PAGE_SIZE = 10;
+const DRIVER_REPORT_PAGE_SIZE_DESKTOP = 10;
+const DRIVER_REPORT_PAGE_SIZE_MOBILE = 3;
+const DRIVER_REPORT_MOBILE_BREAKPOINT = 1024; // matches tailwind lg breakpoint
+const EMPTY_DRIVER_REPORT_LIST: DriverReportEntry[] = [];
 const EMPTY_DRIVER_REPORT_LIST: DriverReportEntry[] = [];
 
 const formatDeliveryStatus = (status?: string, hasReceipt?: boolean) => {
@@ -226,6 +229,7 @@ export const SupervisorDashboard = () => {
   const [driverReportLoading, setDriverReportLoading] = useState(false);
   const [driverReportSearchTerm, setDriverReportSearchTerm] = useState('');
   const [driverReportPage, setDriverReportPage] = useState(1);
+  const [driverReportPageSize, setDriverReportPageSize] = useState(DRIVER_REPORT_PAGE_SIZE_DESKTOP);
 
   const [alertsLoading, setAlertsLoading] = useState(false);
   // filters and pagination for receipts modal
@@ -303,19 +307,39 @@ export const SupervisorDashboard = () => {
   }, []);
 
   const driverReportDrivers = driverReportData?.drivers ?? EMPTY_DRIVER_REPORT_LIST;
+  const effectiveDriverReportPageSize =
+    driverReportPageSize > 0 ? driverReportPageSize : DRIVER_REPORT_PAGE_SIZE_DESKTOP;
 
   useEffect(() => {
     if (!showDriverReportModal) {
       setDriverReportSearchTerm('');
       setDriverReportPage(1);
+      setDriverReportPageSize(DRIVER_REPORT_PAGE_SIZE_DESKTOP);
+      return;
     }
+
+    if (typeof window === 'undefined') {
+      setDriverReportPageSize(DRIVER_REPORT_PAGE_SIZE_DESKTOP);
+      return;
+    }
+
+    const syncViewport = () => {
+      const isMobile = window.innerWidth < DRIVER_REPORT_MOBILE_BREAKPOINT;
+      setDriverReportPageSize(
+        isMobile ? DRIVER_REPORT_PAGE_SIZE_MOBILE : DRIVER_REPORT_PAGE_SIZE_DESKTOP
+      );
+    };
+
+    syncViewport();
+    window.addEventListener('resize', syncViewport);
+    return () => window.removeEventListener('resize', syncViewport);
   }, [showDriverReportModal]);
 
   useEffect(() => {
     if (driverReportPage !== 1) {
       setDriverReportPage(1);
     }
-  }, [driverReportSearchTerm, driverReportDrivers]);
+  }, [driverReportSearchTerm, driverReportDrivers, driverReportPageSize]);
 
   const driverReportFilteredDrivers = useMemo(() => {
     if (!driverReportDrivers.length) return [];
@@ -332,7 +356,7 @@ export const SupervisorDashboard = () => {
 
   const driverReportTotalPages = Math.max(
     1,
-    Math.ceil(driverReportFilteredDrivers.length / DRIVER_REPORT_PAGE_SIZE)
+    Math.ceil(driverReportFilteredDrivers.length / effectiveDriverReportPageSize)
   );
 
   useEffect(() => {
@@ -343,16 +367,17 @@ export const SupervisorDashboard = () => {
 
   const paginatedDrivers = useMemo(() => {
     if (!driverReportFilteredDrivers.length) return [];
-    const start = (driverReportPage - 1) * DRIVER_REPORT_PAGE_SIZE;
-    return driverReportFilteredDrivers.slice(start, start + DRIVER_REPORT_PAGE_SIZE);
-  }, [driverReportFilteredDrivers, driverReportPage]);
+    const pageSize = effectiveDriverReportPageSize;
+    const start = (driverReportPage - 1) * pageSize;
+    return driverReportFilteredDrivers.slice(start, start + pageSize);
+  }, [driverReportFilteredDrivers, driverReportPage, effectiveDriverReportPageSize]);
 
   const driverReportTotalFiltered = driverReportFilteredDrivers.length;
   const driverReportRangeStart = driverReportTotalFiltered
-    ? (driverReportPage - 1) * DRIVER_REPORT_PAGE_SIZE + 1
+    ? (driverReportPage - 1) * effectiveDriverReportPageSize + 1
     : 0;
   const driverReportRangeEnd = driverReportTotalFiltered
-    ? Math.min(driverReportRangeStart + DRIVER_REPORT_PAGE_SIZE - 1, driverReportTotalFiltered)
+    ? Math.min(driverReportRangeStart + effectiveDriverReportPageSize - 1, driverReportTotalFiltered)
     : 0;
 
   const loadDriverStatuses = useCallback(
@@ -1200,7 +1225,7 @@ export const SupervisorDashboard = () => {
       </Dialog>
 
       <Dialog open={showReceiptsModal} onOpenChange={handleReceiptsModalChange}>
-        <DialogContent className="sm:max-w-5xl">
+        <DialogContent className="sm:max-w-lg md:max-w-2xl lg:max-w-5xl max-h-[90vh] flex flex-col">
           <DialogHeader>
             <DialogTitle>Entregas Finalizadas e Canhotos</DialogTitle>
             <DialogDescription>Lista de todas as entregas concluídas.</DialogDescription>
@@ -1210,7 +1235,7 @@ export const SupervisorDashboard = () => {
               <div className="h-6 w-6 animate-spin rounded-full border-2 border-primary/30 border-t-primary" />
             </div>
           ) : finishedDeliveries.length ? (
-            <div>
+            <div className="flex-1 overflow-hidden">
               {/* Filters row */}
               <div className="flex items-center gap-2 mb-3">
                 <div className="flex items-center gap-2">
@@ -1252,53 +1277,75 @@ export const SupervisorDashboard = () => {
                 </div>
               </div>
               <ScrollArea className="max-h-[60vh]">
-              <table className="w-full min-w-[720px] text-left text-sm">
-                <thead className="border-b">
-                  <tr className="text-muted-foreground">
-                    <th className="py-2 pr-4 font-medium">NF</th>
-                    <th className="py-2 pr-4 font-medium">Cliente</th>
-                    <th className="py-2 pr-4 font-medium">Motorista</th>
-                    <th className="py-2 pr-4 font-medium">Data</th>
-                    <th className="py-2 font-medium">Ação</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {(() => {
-                    const start = (currentPage - 1) * PER_PAGE;
-                    const paginated = finishedDeliveries.slice(start, start + PER_PAGE);
-                    return paginated.map((delivery) => (
-                    <tr key={delivery.id} className="border-b last:border-none">
-                      <td className="py-2 pr-4 font-medium">{delivery.nfNumber}</td>
-                      <td className="py-2 pr-4">{delivery.clientName}</td>
-                      <td className="py-2 pr-4">{delivery.driverName}</td>
-                      <td className="py-2 pr-4">{formatDateTime(delivery.createdAt)}</td>
-                      <td className="py-2">
+                {/* Visualização Mobile (Cartões) */}
+                <div className="space-y-3 lg:hidden pr-4">
+                  {finishedDeliveries.slice((currentPage - 1) * PER_PAGE, currentPage * PER_PAGE).map((delivery) => (
+                    <div key={delivery.id} className="rounded-lg border p-3 text-sm">
+                      <div className="flex items-start justify-between">
+                        <div>
+                          <p className="font-medium">NF {delivery.nfNumber}</p>
+                          <p className="text-xs text-muted-foreground">{delivery.clientName}</p>
+                        </div>
+                        <p className="text-xs text-muted-foreground">{formatDateTime(delivery.createdAt)}</p>
+                      </div>
+                      <p className="text-xs text-muted-foreground mt-1">Motorista: {delivery.driverName}</p>
+                      <div className="mt-3">
                         {delivery.receipt_image_url ? (
-                          <div className="flex items-center gap-2">
-                            <Button variant="outline" size="sm" onClick={async () => {
-                              try {
-                                // Try to get a secure blob URL for preview if needed
+                          <Button variant="outline" size="sm" className="w-full" onClick={async () => {
+                            try {
+                              const blobUrl = await apiService.getSecureFile(delivery.receipt_image_url!);
+                              setPreviewUrl(blobUrl || delivery.receipt_image_url!);
+                            } catch (err) {
+                              window.open(delivery.receipt_image_url, '_blank', 'noopener');
+                            }
+                          }}>
+                            Ver Canhoto
+                          </Button>
+                        ) : (
+                          <div className="text-center text-xs text-muted-foreground py-2">Sem Canhoto</div>
+                        )}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+
+                {/* Visualização Desktop (Tabela) */}
+                <div className="hidden lg:block">
+                  <table className="w-full min-w-[720px] text-left text-sm">
+                    <thead className="border-b">
+                      <tr className="text-muted-foreground">
+                        <th className="py-2 pr-4 font-medium">NF</th>
+                        <th className="py-2 pr-4 font-medium">Cliente</th>
+                        <th className="py-2 pr-4 font-medium">Motorista</th>
+                        <th className="py-2 pr-4 font-medium">Data</th>
+                        <th className="py-2 font-medium">Ação</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {finishedDeliveries.slice((currentPage - 1) * PER_PAGE, currentPage * PER_PAGE).map((delivery) => (
+                        <tr key={delivery.id} className="border-b last:border-none">
+                          <td className="py-2 pr-4 font-medium">{delivery.nfNumber}</td>
+                          <td className="py-2 pr-4">{delivery.clientName}</td>
+                          <td className="py-2 pr-4">{delivery.driverName}</td>
+                          <td className="py-2 pr-4">{formatDateTime(delivery.createdAt)}</td>
+                          <td className="py-2">
+                            {delivery.receipt_image_url ? (
+                              <Button variant="outline" size="sm" onClick={async () => {
                                 const blobUrl = await apiService.getSecureFile(delivery.receipt_image_url!);
                                 setPreviewUrl(blobUrl || delivery.receipt_image_url!);
-                              } catch (err) {
-                                // Fallback: open the original URL
-                                window.open(delivery.receipt_image_url, '_blank', 'noopener');
-                              }
-                            }}>
-                              Ver Canhoto
-                            </Button>
-                            {/* link "Abrir" removed per request; preview remains available via 'Ver Canhoto' button */}
-                          </div>
-                        ) : (
-                          <span className="text-xs text-muted-foreground">Sem Canhoto</span>
-                        )}
-                      </td>
-                    </tr>
-                    ));
-                  })()}
-                </tbody>
-              </table>
-            </ScrollArea>
+                              }}>
+                                Ver Canhoto
+                              </Button>
+                            ) : (
+                              <span className="text-xs text-muted-foreground">Sem Canhoto</span>
+                            )}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </ScrollArea>
             {/* Pagination controls */}
             <div className="flex items-center justify-between py-2">
               <div className="text-sm text-muted-foreground">Mostrando {(currentPage-1)*PER_PAGE + 1} - {Math.min(currentPage*PER_PAGE, finishedDeliveries.length)} de {finishedDeliveries.length}</div>
