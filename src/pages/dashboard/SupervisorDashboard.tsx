@@ -1346,7 +1346,7 @@ export const SupervisorDashboard = () => {
       </Dialog>
 
       <Dialog open={showDriverReportModal} onOpenChange={handleDriverReportModalChange}>
-          <DialogContent className="sm:max-w-6xl">
+          <DialogContent className="sm:max-w-lg md:max-w-2xl lg:max-w-6xl">
           <DialogHeader className="space-y-2">
             {/* ... (cabeçalho do modal continua o mesmo) ... */}
             <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
