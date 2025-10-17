@@ -382,7 +382,7 @@ export const Users = () => {
         {getAllowedUserTypes().length > 0 && (
           <Dialog open={showCreateDialog} onOpenChange={setShowCreateDialog}>
             <DialogTrigger asChild>
-              <Button className="flex items-center gap-2">
+              <Button className="bg-gradient-primary flex items-center gap-2 justify-center self-start text-sm h-9 px-3 sm:self-auto sm:text-base sm:h-10 sm:px-4">
                 <Plus className="h-4 w-4" />
                 Novo Usuário
               </Button>

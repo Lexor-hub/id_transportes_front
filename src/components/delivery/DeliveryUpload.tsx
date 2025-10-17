@@ -711,8 +711,8 @@ const handleDocumentAIData = (input: DocumentAIParsedPayload) => {
     'shipment_date'
   );
 
-  const nfNumber = sanitizeDocumentNumber(data.nro ?? data.nfNumber ?? rawNfNumber ?? '');
-  const chave = sanitizeDocumentNumber(data.chave ?? data.nfeKey ?? rawAccessKey ?? '');
+  const nfNumber = normalizeString(data.nro ?? data.nfNumber ?? rawNfNumber ?? '');
+  const chave = normalizeString(data.chave ?? data.nfeKey ?? rawAccessKey ?? '');
   const clientName = (data.receiver_name ?? data.clientName ?? rawClientName ?? '').trim();
   const productValue = data.total_amount ?? data.productValue ?? data.invoiceTotalValue ?? rawProductValue ?? '';
   const invoiceTotalValue = data.invoiceTotalValue ?? data.total_amount ?? data.productValue ?? rawInvoiceTotal ?? '';
@@ -1019,7 +1019,7 @@ const handleSaveDelivery = async () => {
 
     const summaryPayload = {
       nf_number: normalizeString(structuredData.nf_data.numero),
-      nfe_key: normalizeString(structuredData.nf_data.chave),
+      nfe_key: sanitizeDocumentNumber(structuredData.nf_data.chave),
       client_name: normalizeString(structuredData.destinatario.razao_social),
       delivery_address: normalizeString(structuredData.destinatario.endereco),
       emission_date: normalizeDateValue(structuredData.nf_data.data_emissao),

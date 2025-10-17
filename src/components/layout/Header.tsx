@@ -150,7 +150,7 @@ export const Header = () => {
               {navigationItems.map((item) => (
                 <NavigationMenuItem key={item.href}>
                   <NavigationMenuLink
-                    className={navigationMenuTriggerStyle()}
+                    className={`${navigationMenuTriggerStyle()} bg-transparent text-white/80 hover:bg-white/10 hover:text-white`}
                     onClick={() => navigate(item.href)}
                   >
                     <item.icon className="h-4 w-4 mr-2" />

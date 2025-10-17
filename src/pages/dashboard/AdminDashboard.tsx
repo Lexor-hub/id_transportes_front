@@ -280,14 +280,17 @@ export const AdminDashboard = () => {
     // 1. Layout restaurado: O container principal foi adicionado de volta.
     <div className="container mx-auto px-4 md:px-6 py-6 space-y-6">
       {/* Page Header */}
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h1 className="text-3xl font-bold tracking-tight">Dashboard Administrativo</h1>
           <p className="text-muted-foreground mt-1">
             Visão geral do sistema de entregas - {new Date().toLocaleDateString('pt-BR')}
           </p>
         </div>
-        <Button className="bg-gradient-primary text-sm h-9 px-3 sm:text-base sm:h-10 sm:px-4" onClick={() => navigate('/dashboard/relatorios')}>
+        <Button
+          className="bg-gradient-primary self-start text-sm h-9 px-3 sm:self-auto sm:text-base sm:h-10 sm:px-4"
+          onClick={() => navigate('/dashboard/relatorios')}
+        >
           <BarChart3 className="mr-2 h-4 w-4" />
           Relatórios Completos
         </Button>
