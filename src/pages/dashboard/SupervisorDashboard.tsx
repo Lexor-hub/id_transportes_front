@@ -1230,28 +1230,6 @@ export const SupervisorDashboard = () => {
               <div className="flex h-24 items-center justify-center">
                 <div className="h-6 w-6 animate-spin rounded-full border-2 border-primary/30 border-t-primary" />
               </div>
-              <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between mb-3">
-                <div className="relative w-full md:max-w-xs">
-                  <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-                  <Input
-                    value={receiptsSearchTerm}
-                    onChange={(event) => setReceiptsSearchTerm(event.target.value)}
-                    placeholder="Pesquisar NF, cliente ou motorista..."
-                    aria-label="Pesquisar canhotos"
-                    className="pl-9"
-                    disabled={receiptsLoading}
-                  />
-                </div>
-                <div className="flex flex-col gap-1 text-sm text-muted-foreground md:flex-row md:items-center md:gap-3">
-                  <span>
-                    {receiptsTotalFiltered}{' '}
-                    {receiptsTotalFiltered === 1 ? 'entrega encontrada' : 'entregas encontradas'}
-                  </span>
-                  <span>
-                    Pagina {receiptsPage} de {receiptsTotalPages}
-                  </span>
-                </div>
-              </div>
             ) : combinedAlerts.length ? (
               <div className="space-y-3">
                 {combinedAlerts.map((alert) => {
