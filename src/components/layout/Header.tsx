@@ -275,7 +275,7 @@ export const Header = () => {
 
       {/* Mobile Menu */}
       {mobileMenuOpen && (
-        <div className="lg:hidden bg-white/10 backdrop-blur-sm border-t border-white/20">
+        <div className="lg:hidden bg-gradient-primary border-t border-white/20">
           <div className="px-4 py-2 space-y-2">
             {navigationItems.map((item) => (
               <Button
