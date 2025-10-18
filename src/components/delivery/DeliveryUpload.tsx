@@ -502,7 +502,7 @@ export const DeliveryUpload: React.FC<DeliveryUploadProps> = ({
                 const driverData = (rawDriver ?? {}) as Record<string, unknown>;
                 const idCandidate = driverData['id'] ?? driverData['driver_id'] ?? driverData['user_id'] ?? driverData['userId'];
                 const userIdCandidate = driverData['user_id'] ?? driverData['userId'] ?? idCandidate;
-                const nameCandidate = driverData['name'] ?? driverData['full_name'] ?? driverData['username'] ?? driverData['email'];
+                const nameCandidate = driverData['display_name'] ?? driverData['name'] ?? driverData['full_name'] ?? driverData['driver_name'] ?? driverData['username'] ?? driverData['email'];
 
                 const id = idCandidate != null ? String(idCandidate) : '';
                 const name = nameCandidate != null ? String(nameCandidate) : 'Motorista';
