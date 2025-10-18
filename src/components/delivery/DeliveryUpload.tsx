@@ -708,19 +708,19 @@ const handleDocumentAIData = (input: DocumentAIParsedPayload) => {
     'data de saida/entrada',
     'saida/entrada',
     'ship_date',
-    'shipment_date'
+    'shipment_date',
   );
 
-  const nfNumber = normalizeString(data.nro ?? data.nfNumber ?? rawNfNumber ?? '');
-  const chave = normalizeString(data.chave ?? data.nfeKey ?? rawAccessKey ?? '');
+  const nfNumberRaw = data.nro ?? data.nfNumber ?? rawNfNumber ?? rawTextData.nf_numero ?? '';
+  const chaveRaw = data.chave ?? data.nfeKey ?? rawAccessKey ?? rawTextData.chave_acesso ?? '';
   const clientName = (data.receiver_name ?? data.clientName ?? rawClientName ?? '').trim();
   const productValue = data.total_amount ?? data.productValue ?? data.invoiceTotalValue ?? rawProductValue ?? '';
   const invoiceTotalValue = data.invoiceTotalValue ?? data.total_amount ?? data.productValue ?? rawInvoiceTotal ?? '';
-  const issueDate = data.invoice_date ?? data.issueDate ?? rawIssueDate ?? '';
-  const departureDate = data.saida ?? data.departureDate ?? rawDepartureDate ?? '';
+  const issueDate = data.invoice_date ?? data.issueDate ?? rawIssueDate ?? rawTextData.data_emissao ?? '';
+  const departureDate = data.saida ?? data.departureDate ?? rawDepartureDate ?? rawTextData.data_saida ?? '';
 
-  newStructuredData.nf_data.numero = nfNumber;
-  newStructuredData.nf_data.chave = chave;
+  newStructuredData.nf_data.numero = sanitizeDocumentNumber(nfNumberRaw);
+  newStructuredData.nf_data.chave = sanitizeDocumentNumber(chaveRaw);
   newStructuredData.destinatario.razao_social = clientName;
   newStructuredData.valores.valor_total_produtos = productValue;
   newStructuredData.valores.valor_total_nota = invoiceTotalValue;
