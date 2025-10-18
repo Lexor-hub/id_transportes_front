@@ -598,7 +598,6 @@ export const SupervisorDashboard = () => {
                 : 'Alerta operacional';
 
           return {
-            id: `${String(rawId)}-${timestamp}`,
             id: `${String(rawId)}-${new Date(timestamp).getTime()}`,
             title,
             description,
