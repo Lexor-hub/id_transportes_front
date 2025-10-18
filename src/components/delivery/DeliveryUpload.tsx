@@ -690,47 +690,45 @@ const handleDocumentAIData = (input: DocumentAIParsedPayload) => {
   newStructuredData.document_ai_confidence = confidence;
   newStructuredData.document_ai_entities = entities as Array<Record<string, unknown>>;
   
-  // Mapeamento simplificado dos dados recebidos do backend
-  const data = (detail.extractedData || {}) as Record<string, string>;
+  // Preenchimento: Prioriza Document AI > Texto Bruto
+  newStructuredData.nf_data.numero = sanitizeDocumentNumber(takeFirstFromRaw(rawFields, 'nro', 'invoice_id', 'invoice_number')) || rawTextData.nf_numero || '';
+  newStructuredData.nf_data.serie = takeFirstFromRaw(rawFields, 'serie', 'invoice_series') || rawTextData.nf_serie || '';
+  newStructuredData.nf_data.chave = takeFirstFromRaw(rawFields, 'chave', 'access_key', 'nfe_key', 'chave_de_acesso', 'chNFe') || rawTextData.chave_acesso || '';
+  newStructuredData.nf_data.data_emissao = normalizeDateValue(takeFirstFromRaw(rawFields, 'invoice_date', 'issue_date', 'data_emissao', 'emission_date')) || normalizeDateValue(rawTextData.data_emissao) || '';
+  newStructuredData.nf_data.data_saida = normalizeDateValue(takeFirstFromRaw(rawFields, 'saida', 'dt_saida_entrada', 'data_saida', 'shipment_date')) || normalizeDateValue(rawTextData.data_saida) || '';
+  newStructuredData.nf_data.protocolo_autorizacao = takeFirstFromRaw(rawFields, 'protocolo', 'protocolo_de_autorizacao', 'protocol_number') || rawTextData.protocolo_autorizacao || '';
+  
+  newStructuredData.remetente.razao_social = takeFirstFromRaw(rawFields, 'supplier_name', 'ship_from_name') || rawTextData.remetente_razao_social || '';
+  newStructuredData.remetente.cnpj_cpf = formatTaxId(takeFirstFromRaw(rawFields, 'supplier_tax_id', 'ship_from_tax_id')) || rawTextData.remetente_cnpj || '';
+  newStructuredData.remetente.endereco = takeFirstFromRaw(rawFields, 'ship_from_name', 'ship_from_address') || rawTextData.remetente_endereco || '';
+  newStructuredData.remetente.municipio = takeFirstFromRaw(rawFields, 'receiver_address', 'ship_from_city') || rawTextData.remetente_municipio || '';
+  newStructuredData.remetente.uf = takeFirstFromRaw(rawFields, 'receiver_state', 'ship_from_state', 'currency') || rawTextData.remetente_uf || '';
+  newStructuredData.remetente.cep = takeFirstFromRaw(rawFields, 'net_amount', 'supplier_postal_code') || rawTextData.remetente_cep || '';
+  newStructuredData.remetente.telefone = takeFirstFromRaw(rawFields, 'supplier_phone') || rawTextData.remetente_telefone || '';
 
-  const rawNfNumber = takeFirstFromRaw(rawFields, 'nro', 'numero nf', 'numero', 'invoice_number', 'invoice_id', 'document_number');
-  const rawAccessKey = takeFirstFromRaw(rawFields, 'chave', 'chave de acesso', 'chave_acesso', 'chave nfe', 'chave_nfe', 'nfe key', 'nfe_key', 'access key');
-  const rawClientName = takeFirstFromRaw(rawFields, 'receiver_name', 'nome do cliente', 'cliente', 'customer_name', 'destinatario');
-  const rawProductValue = takeFirstFromRaw(rawFields, 'total_amount', 'valor_total_produtos', 'valor total produtos', 'subtotal');
-  const rawInvoiceTotal = takeFirstFromRaw(rawFields, 'valor_total_nota', 'valor nota', 'amount_due', 'grand_total');
-  const rawIssueDate = takeFirstFromRaw(rawFields, 'invoice_date', 'issue_date', 'data_emissao', 'emissao', 'data de emissao');
-  const rawDepartureDate = takeFirstFromRaw(
-    rawFields,
-    'saida',
-    'data_saida',
-    'data saida',
-    'data de saida',
-    'data de saida/entrada',
-    'saida/entrada',
-    'ship_date',
-    'shipment_date'
-  );
+  newStructuredData.destinatario.razao_social = takeFirstFromRaw(rawFields, 'razao', 'customer_name', 'ship_to_name') || rawTextData.destinatario_razao_social || '';
+  newStructuredData.destinatario.cnpj_cpf = formatTaxId(takeFirstFromRaw(rawFields, 'receiver_tax_id', 'customer_tax_id') || rawTextData.destinatario_cnpj) || '';
+  newStructuredData.destinatario.endereco = takeFirstFromRaw(rawFields, 'endereco', 'ship_to_address') || rawTextData.destinatario_endereco || '';
+  newStructuredData.destinatario.municipio = takeFirstFromRaw(rawFields, 'receiver_address', 'customer_city') || rawTextData.destinatario_municipio || '';
+  newStructuredData.destinatario.uf = takeFirstFromRaw(rawFields, 'currency', 'customer_state') || rawTextData.destinatario_uf || '';
+  newStructuredData.destinatario.cep = takeFirstFromRaw(rawFields, 'ship_to_address', 'receiver_postal_code') || rawTextData.destinatario_cep || '';
+  newStructuredData.destinatario.telefone = takeFirstFromRaw(rawFields, 'receiver_phone', 'customer_phone') || rawTextData.destinatario_telefone || '';
 
-  const nfNumber = normalizeString(data.nro ?? data.nfNumber ?? rawNfNumber ?? '');
-  const chave = normalizeString(data.chave ?? data.nfeKey ?? rawAccessKey ?? '');
-  const clientName = (data.receiver_name ?? data.clientName ?? rawClientName ?? '').trim();
-  const productValue = data.total_amount ?? data.productValue ?? data.invoiceTotalValue ?? rawProductValue ?? '';
-  const invoiceTotalValue = data.invoiceTotalValue ?? data.total_amount ?? data.productValue ?? rawInvoiceTotal ?? '';
-  const issueDate = data.invoice_date ?? data.issueDate ?? rawIssueDate ?? '';
-  const departureDate = data.saida ?? data.departureDate ?? rawDepartureDate ?? '';
-
-  newStructuredData.nf_data.numero = nfNumber;
-  newStructuredData.nf_data.chave = chave;
-  newStructuredData.destinatario.razao_social = clientName;
-  newStructuredData.valores.valor_total_produtos = productValue;
-  newStructuredData.valores.valor_total_nota = invoiceTotalValue;
-  newStructuredData.nf_data.data_emissao = normalizeDateValue(issueDate);
-  newStructuredData.nf_data.data_saida = normalizeDateValue(departureDate);
-
-  // Preenche o valor total da nota com o valor dos produtos se o primeiro estiver vazio
-  if (!newStructuredData.valores.valor_total_nota && newStructuredData.valores.valor_total_produtos) {
-    newStructuredData.valores.valor_total_nota = newStructuredData.valores.valor_total_produtos;
-  }
+  newStructuredData.valores.valor_total_nota = formatCurrencyValue(takeFirstFromRaw(rawFields, 'total_amount', 'valor_total_nota', 'amount_due', 'grand_total') || rawTextData.total_nota) || '';
+  newStructuredData.valores.valor_total_produtos = formatCurrencyValue(takeFirstFromRaw(rawFields, 'valor_total_produtos', 'net_amount')) || '';
+  newStructuredData.valores.valor_frete = formatCurrencyValue(takeFirstFromRaw(rawFields, 'freight_amount', 'valor_frete') || rawTextData.valor_frete) || '';
+  
+  newStructuredData.volumes.quantidade = takeFirstFromRaw(rawFields, 'volume', 'volumes', 'total_volume') || rawTextData.volumes_quantidade || '';
+  newStructuredData.volumes.peso_bruto = takeFirstFromRaw(rawFields, 'weight', 'total_weight', 'gross_weight') || rawTextData.peso_bruto || '';
+  newStructuredData.volumes.peso_liquido = takeFirstFromRaw(rawFields, 'net_weight', 'peso_liquido') || rawTextData.peso_liquido || '';
+  
+  const duplicatas = parseDuplicatasFromText(rawText);
+  if (duplicatas.length) newStructuredData.duplicatas = duplicatas;
+  
+  const itens = buildItemsFromRawFields(rawFields);
+  if (itens.length) newStructuredData.itens_de_linha = itens;
+  
+  newStructuredData.informacoes_complementares = rawText; 
 
   setStructuredData(newStructuredData);
   setIsSefazValid(true);
