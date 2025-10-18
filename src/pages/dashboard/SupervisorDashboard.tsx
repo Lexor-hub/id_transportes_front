@@ -599,6 +599,7 @@ export const SupervisorDashboard = () => {
 
           return {
             id: `${String(rawId)}-${timestamp}`,
+            id: `${String(rawId)}-${new Date(timestamp).getTime()}`,
             title,
             description,
             severity,
