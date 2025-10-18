@@ -502,7 +502,7 @@ export const DeliveryUpload: React.FC<DeliveryUploadProps> = ({
                 const driverData = (rawDriver ?? {}) as Record<string, unknown>;
                 const idCandidate = driverData['id'] ?? driverData['driver_id'] ?? driverData['user_id'] ?? driverData['userId'];
                 const userIdCandidate = driverData['user_id'] ?? driverData['userId'] ?? idCandidate;
-                const nameCandidate = driverData['display_name'] ?? driverData['name'] ?? driverData['full_name'] ?? driverData['driver_name'] ?? driverData['username'] ?? driverData['email'];
+                const nameCandidate = driverData['name'] ?? driverData['full_name'] ?? driverData['username'] ?? driverData['email'];
 
                 const id = idCandidate != null ? String(idCandidate) : '';
                 const name = nameCandidate != null ? String(nameCandidate) : 'Motorista';
@@ -708,19 +708,19 @@ const handleDocumentAIData = (input: DocumentAIParsedPayload) => {
     'data de saida/entrada',
     'saida/entrada',
     'ship_date',
-    'shipment_date',
+    'shipment_date'
   );
 
-  const nfNumberRaw = data.nro ?? data.nfNumber ?? rawNfNumber ?? rawTextData.nf_numero ?? '';
-  const chaveRaw = data.chave ?? data.nfeKey ?? rawAccessKey ?? rawTextData.chave_acesso ?? '';
+  const nfNumber = normalizeString(data.nro ?? data.nfNumber ?? rawNfNumber ?? '');
+  const chave = normalizeString(data.chave ?? data.nfeKey ?? rawAccessKey ?? '');
   const clientName = (data.receiver_name ?? data.clientName ?? rawClientName ?? '').trim();
   const productValue = data.total_amount ?? data.productValue ?? data.invoiceTotalValue ?? rawProductValue ?? '';
   const invoiceTotalValue = data.invoiceTotalValue ?? data.total_amount ?? data.productValue ?? rawInvoiceTotal ?? '';
-  const issueDate = data.invoice_date ?? data.issueDate ?? rawIssueDate ?? rawTextData.data_emissao ?? '';
-  const departureDate = data.saida ?? data.departureDate ?? rawDepartureDate ?? rawTextData.data_saida ?? '';
+  const issueDate = data.invoice_date ?? data.issueDate ?? rawIssueDate ?? '';
+  const departureDate = data.saida ?? data.departureDate ?? rawDepartureDate ?? '';
 
-  newStructuredData.nf_data.numero = sanitizeDocumentNumber(nfNumberRaw);
-  newStructuredData.nf_data.chave = sanitizeDocumentNumber(chaveRaw);
+  newStructuredData.nf_data.numero = nfNumber;
+  newStructuredData.nf_data.chave = chave;
   newStructuredData.destinatario.razao_social = clientName;
   newStructuredData.valores.valor_total_produtos = productValue;
   newStructuredData.valores.valor_total_nota = invoiceTotalValue;
