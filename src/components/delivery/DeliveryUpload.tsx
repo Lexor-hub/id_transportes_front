@@ -817,6 +817,11 @@ const handleDocumentAIData = (input: DocumentAIParsedPayload) => {
     e.target.value = '';
   };
 
+  const isMobileDevice = () => {
+    if (typeof navigator === 'undefined') return false;
+    return /Android|iPhone|iPad|iPod|Mobile|Opera Mini|IEMobile/i.test(navigator.userAgent);
+  };
+
   const triggerCameraFilePicker = () => {
     const input = cameraInputRef.current;
     if (!input) return;
@@ -834,6 +839,21 @@ const handleDocumentAIData = (input: DocumentAIParsedPayload) => {
       typeof window !== 'undefined'
         ? window.isSecureContext || ['localhost', '127.0.0.1', '::1'].includes(window.location.hostname)
         : false;
+
+    const isMobile = isMobileDevice();
+
+    // Dispositivos moveis utilizam o seletor nativo para abrir a camera, garantindo o pedido de permissao do navegador/OS.
+    if (isMobile) {
+      if (!isSecureContext) {
+        toast({
+          title: 'Permissao obrigatoria',
+          description: 'Para uma experiencia completa, abra a aplicacao via HTTPS. Continuaremos com a camera nativa.',
+          variant: 'destructive'
+        });
+      }
+      triggerCameraFilePicker();
+      return;
+    }
 
     if (!isSecureContext) {
       toast({
