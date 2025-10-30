@@ -122,8 +122,15 @@ export const DriverDashboard = () => {
     const trackingStartTimestampRef = useRef<number | null>(null);
     const awaitingAccurateFixRef = useRef(false);
     const accuracyToastShownRef = useRef(false);
+    const [shouldRestoreLocation, setShouldRestoreLocation] = useState(false);
+    const todayKey = useMemo(() => {
+        const now = new Date();
+        return now.toISOString().split('T')[0];
+    }, []);
 
     const driverId = resolveDriverId();
+    const dayStorageKey = driverId ? `driver_${driverId}_day_started_${todayKey}` : null;
+    const routeStorageKey = driverId ? `driver_${driverId}_route_started_${todayKey}` : null;
     const activeVehicle = useMemo(
         () => vehicles.find((vehicle) => vehicle.id === activeVehicleId) ?? null,
         [vehicles, activeVehicleId]
@@ -344,6 +351,48 @@ export const DriverDashboard = () => {
         };
     }, [driverId, toast, user?.company_id]);
 
+    useEffect(() => {
+        if (typeof window === 'undefined' || !driverId) {
+            return;
+        }
+
+        if (dayStorageKey) {
+            const storedDay = localStorage.getItem(dayStorageKey);
+            if (storedDay === 'true') {
+                setDayStarted(true);
+            }
+        }
+
+        if (routeStorageKey) {
+            const storedRoute = localStorage.getItem(routeStorageKey);
+            if (storedRoute === 'true') {
+                setDayStarted(true);
+                setRouteStarted((prev) => {
+                    if (!prev) {
+                        setShouldRestoreLocation(true);
+                    }
+                    return true;
+                });
+            }
+        }
+    }, [driverId, dayStorageKey, routeStorageKey]);
+
+    useEffect(() => {
+        if (!dayStarted || !dayStorageKey || typeof window === 'undefined') {
+            return;
+        }
+
+        localStorage.setItem(dayStorageKey, 'true');
+    }, [dayStarted, dayStorageKey]);
+
+    useEffect(() => {
+        if (!routeStarted || !routeStorageKey || typeof window === 'undefined') {
+            return;
+        }
+
+        localStorage.setItem(routeStorageKey, 'true');
+    }, [routeStarted, routeStorageKey]);
+
     const stopLocationTracking = useCallback(() => {
         if (typeof navigator !== 'undefined' && navigator.geolocation && locationWatchId.current !== null) {
             navigator.geolocation.clearWatch(locationWatchId.current);
@@ -490,6 +539,25 @@ export const DriverDashboard = () => {
         return true;
     }, [stopLocationTracking, toast, sendLocationUpdate]);
 
+    useEffect(() => {
+        if (!shouldRestoreLocation) {
+            return;
+        }
+
+        if (!routeStarted) {
+            setShouldRestoreLocation(false);
+            return;
+        }
+
+        updateDriverStatus('online');
+
+        if (hasLocationConsent) {
+            startLocationTracking();
+        }
+
+        setShouldRestoreLocation(false);
+    }, [shouldRestoreLocation, routeStarted, hasLocationConsent, startLocationTracking, updateDriverStatus]);
+
     // Novo useEffect para enviar a localização sempre que `lastKnownPosition` mudar.
     useEffect(() => {
         if (routeStarted && lastKnownPosition) {
@@ -629,6 +697,10 @@ export const DriverDashboard = () => {
     }, [stopLocationTracking]);
 
     const handleStartDay = () => {
+        if (typeof window !== 'undefined' && dayStorageKey) {
+            localStorage.setItem(dayStorageKey, 'true');
+        }
+
         setDayStarted(true);
         toast({
             title: "Dia iniciado!",
@@ -639,6 +711,17 @@ export const DriverDashboard = () => {
     const executeRouteStart = useCallback((vehicleInfoOverride?: VehicleOption | null) => {
         if (routeStarted) return;
         setRouteStarted(true);
+        setShouldRestoreLocation(false);
+
+        if (typeof window !== 'undefined') {
+            if (routeStorageKey) {
+                localStorage.setItem(routeStorageKey, 'true');
+            }
+            if (dayStorageKey) {
+                localStorage.setItem(dayStorageKey, 'true');
+            }
+        }
+
         updateDriverStatus('online');
 
         const vehicleInfo = vehicleInfoOverride ?? activeVehicle;
@@ -651,7 +734,7 @@ export const DriverDashboard = () => {
             description: `Boa viagem! ${vehicleDescription}`
         });
         startLocationTracking();
-    }, [routeStarted, updateDriverStatus, activeVehicle, toast, startLocationTracking]);
+    }, [routeStarted, routeStorageKey, dayStorageKey, updateDriverStatus, activeVehicle, toast, startLocationTracking]);
 
     const handleVehicleSelectionCancel = useCallback((showWarning = true) => {
         setShowVehicleSelectionModal(false);
@@ -745,7 +828,13 @@ const handleStartRoute = () => {
         } else {
             sendLocationUpdate();
         }
+
+        if (typeof window !== 'undefined' && routeStorageKey) {
+            localStorage.removeItem(routeStorageKey);
+        }
+
         setRouteStarted(false);
+        setShouldRestoreLocation(false);
         stopLocationTracking();
         updateDriverStatus('offline');
         toast({
