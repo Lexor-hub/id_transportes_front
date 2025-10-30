@@ -102,6 +102,28 @@ export const getApiConfig = ((): () => ApiConfig => {
  * @returns {string} A URL base do serviço correspondente.
  */
 export function getBaseUrl(endpoint: string): string {
+  const runtimeGateway =
+    typeof window !== 'undefined' && (window as Record<string, unknown>)?.__IDT_API_GATEWAY__
+      ? String((window as Record<string, unknown>).__IDT_API_GATEWAY__)
+      : undefined;
+
+  const envGateway = typeof import.meta !== 'undefined'
+    ? (import.meta.env as Record<string, string | undefined>).VITE_API_GATEWAY_URL?.trim()
+    : undefined;
+
+  const gatewayBase = envGateway || runtimeGateway;
+  if (gatewayBase && gatewayBase.length > 0) {
+    return gatewayBase.replace(/\/+$/, '');
+  }
+
+  const sameOriginFlag = typeof import.meta !== 'undefined'
+    ? (import.meta.env as Record<string, string | undefined>).VITE_USE_SAME_ORIGIN?.toLowerCase()
+    : undefined;
+
+  if (sameOriginFlag === 'true' && typeof window !== 'undefined' && window.location?.origin) {
+    return window.location.origin.replace(/\/+$/, '');
+  }
+
   const config = getApiConfig();
 
   if (endpoint.startsWith('/api/auth')) return config.AUTH_SERVICE;
@@ -113,6 +135,7 @@ export function getBaseUrl(endpoint: string): string {
   if (endpoint.startsWith('/api/reports') || endpoint.startsWith('/api/dashboard')) return config.REPORTS;
   if (endpoint.startsWith('/api/companies')) return config.COMPANIES;
 
-  console.warn(`[getBaseUrl] Rota não mapeada para o endpoint: "${endpoint}". Usando AUTH_SERVICE como fallback.`);
+  console.warn(`[getBaseUrl] Rota nao mapeada para o endpoint: "${endpoint}". Usando AUTH_SERVICE como fallback.`);
   return config.AUTH_SERVICE;
 }
+

@@ -27,6 +27,7 @@ import {
 import { apiService } from '@/services/api';
 import { computeMovementStatus, getMovementStatusTw, MOVEMENT_STATUS_LABEL, MovementStatus } from '@/lib/driver-status';
 import { useToast } from '@/hooks/use-toast';
+import { useAuth } from '@/contexts/AuthContext';
 
 // CORREÇÃO: Adicionada interface para veículos
 type Vehicle = {
@@ -210,6 +211,7 @@ const formatRelativeTime = (timestamp?: string | null) => {
 };
 
 export const SupervisorDashboard = () => {
+  const { user } = useAuth();
   const [stats, setStats] = useState({
     totalEntregas: 0,
     entregasRealizadas: 0,
@@ -805,10 +807,24 @@ export const SupervisorDashboard = () => {
   // load companies and drivers for filters
   const loadCompaniesAndDrivers = useCallback(async () => {
     try {
-      const companiesResp = await apiService.getCompanies();
+      const isMaster = user?.user_type === 'MASTER';
+      let companiesResp = isMaster
+        ? await apiService.getManagementCompanies()
+        : await apiService.getAuthCompanies();
+
+      if (!companiesResp.success && isMaster) {
+        const fallback = await apiService.getAuthCompanies();
+        if (fallback.success) {
+          companiesResp = fallback;
+        }
+      }
+
       if (companiesResp.success && Array.isArray(companiesResp.data)) {
         setCompanies(companiesResp.data as Array<any>);
+      } else if (!companiesResp.success) {
+        setCompanies([]);
       }
+
       const driversResp = await apiService.getDrivers({ status: 'active' });
       if (driversResp.success && Array.isArray(driversResp.data)) {
         setDrivers((driversResp.data as Array<any>).map(d => ({
@@ -818,7 +834,7 @@ export const SupervisorDashboard = () => {
         })));
       }
     } catch (err) {}
-  }, []);
+  }, [user?.user_type]);
 
   const handleReceiptsModalChange = useCallback((open: boolean) => {
     setShowReceiptsModal(open);
@@ -826,7 +842,7 @@ export const SupervisorDashboard = () => {
       void loadCompaniesAndDrivers();
       void loadFinishedDeliveries();
     }
-  }, [loadFinishedDeliveries]);
+  }, [loadCompaniesAndDrivers, loadFinishedDeliveries]);
 
   const applyFilters = () => {
     // Map companyQuery/driverQuery (name search) to IDs if possible, then apply
