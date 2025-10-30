@@ -817,11 +817,6 @@ const handleDocumentAIData = (input: DocumentAIParsedPayload) => {
     e.target.value = '';
   };
 
-  const isMobileDevice = () => {
-    if (typeof navigator === 'undefined') return false;
-    return /Android|iPhone|iPad|iPod|Mobile|Opera Mini|IEMobile/i.test(navigator.userAgent);
-  };
-
   const triggerCameraFilePicker = () => {
     const input = cameraInputRef.current;
     if (!input) return;
@@ -830,10 +825,10 @@ const handleDocumentAIData = (input: DocumentAIParsedPayload) => {
   };
 
   const openCamera = async () => {
-    if (isMobileDevice()) {
-      triggerCameraFilePicker();
-      return;
-    }
+    const supportsMediaDevices =
+      typeof navigator !== 'undefined' &&
+      !!navigator.mediaDevices &&
+      typeof navigator.mediaDevices.getUserMedia === 'function';
 
     const isSecureContext =
       typeof window !== 'undefined'
@@ -850,7 +845,7 @@ const handleDocumentAIData = (input: DocumentAIParsedPayload) => {
       return;
     }
 
-    if (typeof navigator === 'undefined' || !navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+    if (!supportsMediaDevices) {
       toast({
         title: 'Camera indisponivel',
         description: 'Nao foi possivel acessar a camera automaticamente. Selecione a foto manualmente.',
