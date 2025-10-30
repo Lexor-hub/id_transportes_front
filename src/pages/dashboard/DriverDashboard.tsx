@@ -453,14 +453,16 @@ export const DriverDashboard = () => {
         const watchId = navigator.geolocation.watchPosition(
             (position) => {
                 setLastKnownPosition(position);
-                if (!locationActive) { // Apenas na primeira vez que a localização é obtida
-                    setLocationActive(true);
-                    setRequestingLocation(false);
-                    toast({
-                        title: 'localização ativada',
-                        description: 'Estamos acompanhando seu trajeto apenas enquanto a rota estiver ativa.'
-                    });
-                }
+                setLocationActive((prev) => {
+                    if (!prev) { // Apenas na primeira vez que a localização é obtida
+                        setRequestingLocation(false);
+                        toast({
+                            title: 'localização ativada',
+                            description: 'Estamos acompanhando seu trajeto apenas enquanto a rota estiver ativa.'
+                        });
+                    }
+                    return true;
+                });
             },
             (error) => {
                 // Se houver um erro, paramos tudo para evitar comportamento inesperado.
