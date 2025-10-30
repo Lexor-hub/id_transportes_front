@@ -86,7 +86,7 @@ const roleMap: Record<string, string> = {
 ### Navegação por Tipo de Usuário
 - **MASTER**: Dashboard Master, Empresas, Usuários, Relatórios
 - **ADMIN**: Dashboard, Usuários, Veículos, Canhotos, Relatórios, Rastreamento
-- **SUPERVISOR/OPERATOR**: Dashboard, Canhotos, Relatórios, Rastreamento
+- **SUPERVISOR/OPERATOR**: Dashboard, Relatórios, Rastreamento
 - **DRIVER**: Minhas Entregas, Rastreamento
 - **CLIENT**: Minhas Entregas, Relatórios
 

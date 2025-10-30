@@ -8,11 +8,6 @@ describe('Supervisor/Operador', () => {
     cy.contains('Dashboard Operacional');
   });
 
-  it('deve listar e buscar canhotos', () => {
-    cy.contains('Canhotos').click();
-    cy.get('[data-testid="canhoto-item"]').should('exist');
-  });
-
   it('deve monitorar motoristas', () => {
     cy.contains('Rastreamento').click();
     cy.get('.leaflet-container').should('exist');
