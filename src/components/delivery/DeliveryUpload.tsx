@@ -806,6 +806,7 @@ const handleDocumentAIData = (input: DocumentAIParsedPayload) => {
 
   setUploadedFile(file);
   await processDocumentWithAI(file);
+  e.target.value = '';
 };
 
   const handleCameraCapture = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -813,6 +814,7 @@ const handleDocumentAIData = (input: DocumentAIParsedPayload) => {
     if (!file) return;    
     setUploadedFile(file);
     await processDocumentWithAI(file);
+    e.target.value = '';
   };
 
   const isMobileDevice = () => {
@@ -820,24 +822,47 @@ const handleDocumentAIData = (input: DocumentAIParsedPayload) => {
     return /Android|iPhone|iPad|iPod|Mobile|Opera Mini|IEMobile/i.test(navigator.userAgent);
   };
 
+  const triggerCameraFilePicker = () => {
+    const input = cameraInputRef.current;
+    if (!input) return;
+    input.value = '';
+    input.click();
+  };
+
   const openCamera = async () => {
     if (isMobileDevice()) {
-      cameraInputRef.current?.click();
+      triggerCameraFilePicker();
+      return;
+    }
+
+    const isSecureContext =
+      typeof window !== 'undefined'
+        ? window.isSecureContext || ['localhost', '127.0.0.1', '::1'].includes(window.location.hostname)
+        : false;
+
+    if (!isSecureContext) {
+      toast({
+        title: 'Permissao obrigatoria',
+        description: 'Para usar a camera diretamente abra a aplicacao via HTTPS ou utilize o seletor de arquivos abaixo.',
+        variant: 'destructive'
+      });
+      triggerCameraFilePicker();
       return;
     }
 
     if (typeof navigator === 'undefined' || !navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
       toast({
-        title: 'Câmera indisponível',
+        title: 'Camera indisponivel',
         description: 'Nao foi possivel acessar a camera automaticamente. Selecione a foto manualmente.',
         variant: 'destructive'
       });
-      cameraInputRef.current?.click();
+      triggerCameraFilePicker();
       return;
     }
 
+    let stream: MediaStream | null = null;
     try {
-      const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } });
+      stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } });
       const video = document.createElement('video');
       video.srcObject = stream;
       video.playsInline = true;
@@ -868,30 +893,37 @@ const handleDocumentAIData = (input: DocumentAIParsedPayload) => {
         const file = new File([blob], 'camera-capture.jpg', { type: 'image/jpeg' });
         setUploadedFile(file);
         await processDocumentWithAI(file);
-      }
-
-      stream.getTracks().forEach((track) => track.stop());
-    } catch (error) {
-       // Correção: Trata erros de permissão de forma mais específica
-      if (error instanceof Error && (error.name === 'NotAllowedError' || error.name === 'PermissionDeniedError')) { 
-        console.warn('Acesso à câmera negado pelo usuário ou navegador.');
+      } else {
         toast({
-          title: 'Acesso à câmera negado',
-          description: 'Por favor, use a opção "Selecionar Arquivo" para enviar a foto.',
-          variant: 'default'
+          title: 'Falha na captura',
+          description: 'Nao foi possivel capturar a imagem automaticamente. Utilize o seletor de arquivos.',
+          variant: 'destructive'
+        });
+        triggerCameraFilePicker();
+      }
+    } catch (error) {
+      if (error instanceof Error && (error.name === 'NotAllowedError' || error.name === 'PermissionDeniedError')) {
+        console.warn('Acesso a camera negado pelo usuario ou navegador.');
+        toast({
+          title: 'Acesso a camera negado',
+          description: 'Permita o uso da camera nas configuracoes do navegador ou utilize o seletor de arquivos.',
+          variant: 'destructive'
         });
       } else {
         console.error('Erro ao acessar camera', error);
         toast({
-          title: 'Erro na câmera',
-          description: 'Não foi possível acessar a câmera. Tente enviar a foto manualmente.',
+          title: 'Erro na camera',
+          description: 'Nao foi possivel acessar a camera. Tente enviar a foto manualmente.',
           variant: 'destructive'
         });
       }
-      cameraInputRef.current?.click();
+      triggerCameraFilePicker();
+    } finally {
+      if (stream) {
+        stream.getTracks().forEach((track) => track.stop());
+      }
     }
   };
-
 
 const handleSaveDelivery = async () => {
   try {
