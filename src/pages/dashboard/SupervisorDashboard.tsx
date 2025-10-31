@@ -152,6 +152,84 @@ const isSameDayIso = (value: string | undefined, targetIso: string) => {
   return trimmed.slice(0, 10) === targetIso;
 };
 
+const resolvePathValue = (source: unknown, path: string): unknown => {
+  if (!source || typeof source !== 'object') return null;
+  const segments = path.split('.');
+  let current: any = source;
+  for (const segment of segments) {
+    if (current && typeof current === 'object' && segment in current) {
+      current = current[segment as keyof typeof current];
+    } else {
+      return null;
+    }
+  }
+  return current;
+};
+
+const pickTextValue = (source: unknown, candidates: string[]): string | null => {
+  for (const path of candidates) {
+    const value = resolvePathValue(source, path);
+    if (value === undefined || value === null) continue;
+    if (typeof value === 'string') {
+      const trimmed = value.trim();
+      if (trimmed) return trimmed;
+    } else if (typeof value === 'number') {
+      return String(value);
+    }
+  }
+  return null;
+};
+
+const NF_NUMBER_FIELDS = [
+  'nf_number',
+  'nfNumber',
+  'nf',
+  'nota_fiscal',
+  'notaFiscal',
+  'invoice_number',
+  'delivery.nfNumber',
+  'delivery.nf_number',
+];
+
+const CLIENT_NAME_FIELDS = [
+  'client_name',
+  'clientName',
+  'client_name_extracted',
+  'client.name',
+  'client.fantasy_name',
+  'client.trade_name',
+  'customer.name',
+  'destinatario.nome',
+];
+
+const DRIVER_NAME_FIELDS = [
+  'driver_name',
+  'driverName',
+  'driver_full_name',
+  'driver.full_name',
+  'driver.name',
+  'driver.user.full_name',
+  'driver.user.name',
+  'driver_details.name',
+  'assigned_driver_name',
+  'assignedDriver.name',
+  'driverRecord.name',
+  'motorista.nome',
+];
+
+const ADDRESS_FIELDS = [
+  'delivery_address',
+  'deliveryAddress',
+  'client_address',
+  'clientAddress',
+  'address',
+  'client.address',
+  'destinatario.endereco',
+  'destination.address',
+  'location.address',
+  'route.destination_address',
+];
+
 const TODAY_DELIVERIES_PAGE_SIZE_DESKTOP = 10;
 const TODAY_DELIVERIES_PAGE_SIZE_MOBILE = 3;
 const EMPTY_TODAY_DELIVERIES_LIST: TodayDelivery[] = [];
@@ -806,18 +884,28 @@ export const SupervisorDashboard = () => {
         };
 
         const deliveriesData = (response.data as Array<Record<string, unknown>>).map((item) => {
-          const createdAt = typeof item['created_at'] === 'string' ? item['created_at'] : '';
+          const createdAt =
+            pickTextValue(item, [
+              'created_at',
+              'createdAt',
+              'delivery_date_actual',
+              'deliveryDateActual',
+              'delivery_date_expected',
+              'deliveryDateExpected',
+              'timestamp',
+            ]) || '';
           const hasReceipt = Boolean(item['has_receipt']);
           const status = typeof item['status'] === 'string' ? item['status'] : '';
-          const nfNumber = normalizeString(item['nf_number'], 'N/A');
-          const clientNamePrimary = normalizeString(item['client_name'], '');
-          const clientName = clientNamePrimary || normalizeString(item['client_name_extracted'], 'Cliente não identificado');
-          const addressPrimary = normalizeString(item['delivery_address'], '');
-          const address = addressPrimary || normalizeString(item['client_address'], 'Endereço não informado');
-          const driverName = normalizeString(item['driver_name'], 'Sem motorista');
+          const nfNumber = pickTextValue(item, NF_NUMBER_FIELDS) || 'N/A';
+          const clientName =
+            pickTextValue(item, CLIENT_NAME_FIELDS) || 'Cliente não identificado';
+          const driverName =
+            pickTextValue(item, DRIVER_NAME_FIELDS) || 'Sem motorista';
+          const address =
+            pickTextValue(item, ADDRESS_FIELDS) || 'Endereço não informado';
 
           return {
-            id: String(item['id'] ?? ''),
+            id: String(item['id'] ?? item['delivery_id'] ?? item['deliveryId'] ?? ''),
             nfNumber,
             clientName,
             driverName,
@@ -1251,14 +1339,31 @@ export const SupervisorDashboard = () => {
         const deliveriesList = kpis?.today_deliveries?.list;
         if (Array.isArray(deliveriesList)) {
           const mapped: TodayDelivery[] = deliveriesList.map((item: any) => {
-            const createdAt = typeof item.created_at === 'string' ? item.created_at : (item.delivery_date_expected || '');
+            const createdAt =
+              pickTextValue(item, [
+                'created_at',
+                'createdAt',
+                'delivery_date_actual',
+                'deliveryDateActual',
+                'delivery_date_expected',
+                'deliveryDateExpected',
+                'timestamp',
+              ]) || '';
             const hasReceipt = Boolean(item.receipt_id || item.dr_id || item.receiptId || item.dr);
+            const nfNumber = pickTextValue(item, NF_NUMBER_FIELDS) || 'N/A';
+            const clientName =
+              pickTextValue(item, CLIENT_NAME_FIELDS) || 'Cliente não identificado';
+            const driverName =
+              pickTextValue(item, DRIVER_NAME_FIELDS) || 'Sem motorista';
+            const address =
+              pickTextValue(item, ADDRESS_FIELDS) || 'Endereço não informado';
+
             return {
-              id: String(item.id ?? ''),
-              nfNumber: String(item.nf_number ?? item.nfNumber ?? 'N/A'),
-              clientName: String(item.client_name ?? item.client_name_extracted ?? 'Cliente não identificado'),
-              driverName: String(item.driver_name ?? 'Sem motorista'),
-              address: String(item.delivery_address ?? item.client_address ?? 'Endereço não informado'),
+              id: String(item.id ?? item.delivery_id ?? item.deliveryId ?? ''),
+              nfNumber,
+              clientName,
+              driverName,
+              address,
               statusLabel: formatDeliveryStatus(item.status, hasReceipt),
               createdAt,
             } as TodayDelivery;
@@ -1434,8 +1539,10 @@ export const SupervisorDashboard = () => {
                   <div className="space-y-3">
                     {driverStatuses.map((driver) => {
                       const statusStyles = getMovementStatusTw(driver.status);
-                      const safeSpeed = driver.speed < 0 ? 0 : driver.speed;
-                      const formattedSpeed = safeSpeed.toFixed(1);
+                      // Normalize speed and only show it when the driver is actually moving
+                      const safeSpeed = Math.max(0, Number(driver.speed ?? 0));
+                      const showSpeed = safeSpeed >= 1; // match movement detection threshold
+                      const formattedSpeed = showSpeed ? safeSpeed.toFixed(1) : null;
                       return (
                         <div
                           key={driver.id}
@@ -1444,7 +1551,7 @@ export const SupervisorDashboard = () => {
                           <div>
                             <p className={`text-sm font-semibold ${statusStyles.text}`}>{driver.name}</p>
                             <p className="text-xs text-muted-foreground">
-                              {formatRelativeTime(driver.lastUpdate)} - {formattedSpeed} km/h
+                              {formatRelativeTime(driver.lastUpdate)}{formattedSpeed ? ` - ${formattedSpeed} km/h` : ''}
                             </p>
                             {driver.vehicleLabel && (
                               <p className="text-xs text-muted-foreground">Veiculo: {driver.vehicleLabel}</p>
@@ -1508,7 +1615,7 @@ export const SupervisorDashboard = () => {
       </div>
       
       <Dialog open={showDeliveriesModal} onOpenChange={handleDeliveriesModalChange}>
-        <DialogContent className="sm:max-w-lg md:max-w-2xl lg:max-w-5xl max-h-[90vh] flex flex-col">
+        <DialogContent className="sm:max-w-lg md:max-w-2xl lg:max-w-5xl max-h-[100vh] flex flex-col">
           <DialogHeader>
             <DialogTitle>Entregas do dia</DialogTitle>
             <DialogDescription>Resumo das entregas cadastradas por todos os motoristas hoje.</DialogDescription>
