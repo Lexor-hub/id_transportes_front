@@ -184,11 +184,14 @@ const NF_NUMBER_FIELDS = [
   'nf_number',
   'nfNumber',
   'nf',
+  'nfe',
   'nota_fiscal',
   'notaFiscal',
   'invoice_number',
   'delivery.nfNumber',
   'delivery.nf_number',
+  'invoice.number',
+  'document.number',
 ];
 
 const CLIENT_NAME_FIELDS = [
@@ -200,6 +203,9 @@ const CLIENT_NAME_FIELDS = [
   'client.trade_name',
   'customer.name',
   'destinatario.nome',
+  'receiver.name',
+  'recipient.name',
+  'consignee.name',
 ];
 
 const DRIVER_NAME_FIELDS = [
@@ -215,6 +221,13 @@ const DRIVER_NAME_FIELDS = [
   'assignedDriver.name',
   'driverRecord.name',
   'motorista.nome',
+  'driverInfo.name',
+  'driverInfo.full_name',
+  'user.full_name',
+  'actor_name',
+  'actor.full_name',
+  'delivery.driver_name',
+  'delivery.driver.full_name',
 ];
 
 const ADDRESS_FIELDS = [
@@ -228,6 +241,9 @@ const ADDRESS_FIELDS = [
   'destination.address',
   'location.address',
   'route.destination_address',
+  'address.full',
+  'delivery.destination',
+  'destination.full_address',
 ];
 
 const TODAY_DELIVERIES_PAGE_SIZE_DESKTOP = 10;

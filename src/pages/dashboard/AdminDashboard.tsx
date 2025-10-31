@@ -12,7 +12,6 @@ import {
   AlertTriangle, 
   Users, 
   MapPin,
-  BarChart3,
   FileText,
   Search,
   RefreshCw,
@@ -287,13 +286,6 @@ export const AdminDashboard = () => {
             Visão geral do sistema de entregas - {new Date().toLocaleDateString('pt-BR')}
           </p>
         </div>
-        <Button
-          className="bg-gradient-primary self-start text-sm h-9 px-3 sm:self-auto sm:text-base sm:h-10 sm:px-4"
-          onClick={() => navigate('/dashboard/relatorios')}
-        >
-          <BarChart3 className="mr-2 h-4 w-4" />
-          Relatórios Completos
-        </Button>
       </div>
 
       {/* Stats Grid */}
