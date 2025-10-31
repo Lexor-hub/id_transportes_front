@@ -135,6 +135,10 @@ const DRIVER_REPORT_PAGE_SIZE_MOBILE = 3;
 const DRIVER_REPORT_MOBILE_BREAKPOINT = 1024; // matches tailwind lg breakpoint
 const EMPTY_DRIVER_REPORT_LIST: DriverReportEntry[] = [];
 
+const TODAY_DELIVERIES_PAGE_SIZE_DESKTOP = 10;
+const TODAY_DELIVERIES_PAGE_SIZE_MOBILE = 3;
+const EMPTY_TODAY_DELIVERIES_LIST: TodayDelivery[] = [];
+
 const RECEIPTS_PAGE_SIZE_DESKTOP = 10;
 const RECEIPTS_PAGE_SIZE_MOBILE = 3;
 const EMPTY_RECEIPTS_LIST: TodayDelivery[] = [];
@@ -224,6 +228,9 @@ export const SupervisorDashboard = () => {
   const [driversLoading, setDriversLoading] = useState(false);
   const [showDeliveriesModal, setShowDeliveriesModal] = useState(false);
   const [todayDeliveries, setTodayDeliveries] = useState<TodayDelivery[]>([]);
+  const [todayDeliveriesSearchTerm, setTodayDeliveriesSearchTerm] = useState('');
+  const [todayDeliveriesPage, setTodayDeliveriesPage] = useState(1);
+  const [todayDeliveriesPageSize, setTodayDeliveriesPageSize] = useState(TODAY_DELIVERIES_PAGE_SIZE_DESKTOP);
   const [deliveriesLoading, setDeliveriesLoading] = useState(false);
   const [showReceiptsModal, setShowReceiptsModal] = useState(false);
   const [finishedDeliveries, setFinishedDeliveries] = useState<TodayDelivery[]>([]);
@@ -384,6 +391,89 @@ export const SupervisorDashboard = () => {
     : 0;
   const driverReportRangeEnd = driverReportTotalFiltered
     ? Math.min(driverReportRangeStart + effectiveDriverReportPageSize - 1, driverReportTotalFiltered)
+    : 0;
+
+  const todayDeliveriesList = todayDeliveries ?? EMPTY_TODAY_DELIVERIES_LIST;
+  const effectiveTodayDeliveriesPageSize =
+    todayDeliveriesPageSize > 0 ? todayDeliveriesPageSize : TODAY_DELIVERIES_PAGE_SIZE_DESKTOP;
+
+  useEffect(() => {
+    if (!showDeliveriesModal) {
+      setTodayDeliveriesSearchTerm('');
+      setTodayDeliveriesPage(1);
+      setTodayDeliveriesPageSize(TODAY_DELIVERIES_PAGE_SIZE_DESKTOP);
+      return;
+    }
+
+    if (typeof window === 'undefined') {
+      setTodayDeliveriesPageSize(TODAY_DELIVERIES_PAGE_SIZE_DESKTOP);
+      return;
+    }
+
+    const syncTodayDeliveriesViewport = () => {
+      const isMobile = window.innerWidth < DRIVER_REPORT_MOBILE_BREAKPOINT;
+      setTodayDeliveriesPageSize(
+        isMobile ? TODAY_DELIVERIES_PAGE_SIZE_MOBILE : TODAY_DELIVERIES_PAGE_SIZE_DESKTOP
+      );
+    };
+
+    syncTodayDeliveriesViewport();
+    window.addEventListener('resize', syncTodayDeliveriesViewport);
+    return () => window.removeEventListener('resize', syncTodayDeliveriesViewport);
+  }, [showDeliveriesModal]);
+
+  useEffect(() => {
+    if (todayDeliveriesPage !== 1) {
+      setTodayDeliveriesPage(1);
+    }
+  }, [todayDeliveriesSearchTerm, todayDeliveriesPageSize, todayDeliveriesList]);
+
+  const todayDeliveriesFiltered = useMemo(() => {
+    if (!todayDeliveriesList.length) return EMPTY_TODAY_DELIVERIES_LIST;
+
+    const term = todayDeliveriesSearchTerm.trim().toLowerCase();
+    if (!term) return todayDeliveriesList;
+
+    return todayDeliveriesList.filter((delivery) => {
+      const nf = (delivery.nfNumber ?? '').toLowerCase();
+      const client = (delivery.clientName ?? '').toLowerCase();
+      const driver = (delivery.driverName ?? '').toLowerCase();
+      const address = (delivery.address ?? '').toLowerCase();
+      const status = (delivery.statusLabel ?? '').toLowerCase();
+      return (
+        nf.includes(term) ||
+        client.includes(term) ||
+        driver.includes(term) ||
+        address.includes(term) ||
+        status.includes(term)
+      );
+    });
+  }, [todayDeliveriesList, todayDeliveriesSearchTerm]);
+
+  const todayDeliveriesTotalPages = Math.max(
+    1,
+    Math.ceil(todayDeliveriesFiltered.length / effectiveTodayDeliveriesPageSize)
+  );
+
+  useEffect(() => {
+    if (todayDeliveriesPage > todayDeliveriesTotalPages) {
+      setTodayDeliveriesPage(todayDeliveriesTotalPages);
+    }
+  }, [todayDeliveriesPage, todayDeliveriesTotalPages]);
+
+  const paginatedTodayDeliveries = useMemo(() => {
+    if (!todayDeliveriesFiltered.length) return EMPTY_TODAY_DELIVERIES_LIST;
+
+    const start = (todayDeliveriesPage - 1) * effectiveTodayDeliveriesPageSize;
+    return todayDeliveriesFiltered.slice(start, start + effectiveTodayDeliveriesPageSize);
+  }, [todayDeliveriesFiltered, todayDeliveriesPage, effectiveTodayDeliveriesPageSize]);
+
+  const todayDeliveriesTotalFiltered = todayDeliveriesFiltered.length;
+  const todayDeliveriesRangeStart = todayDeliveriesTotalFiltered
+    ? (todayDeliveriesPage - 1) * effectiveTodayDeliveriesPageSize + 1
+    : 0;
+  const todayDeliveriesRangeEnd = todayDeliveriesTotalFiltered
+    ? Math.min(todayDeliveriesRangeStart + effectiveTodayDeliveriesPageSize - 1, todayDeliveriesTotalFiltered)
     : 0;
 
   const receiptsList = finishedDeliveries ?? EMPTY_RECEIPTS_LIST;
@@ -707,6 +797,7 @@ export const SupervisorDashboard = () => {
         const sorted = deliveriesData.sort((a, b) => toTimestamp(b.createdAt) - toTimestamp(a.createdAt));
 
         setTodayDeliveries(sorted);
+        setTodayDeliveriesPage(1);
         setStats(prev => ({
           ...prev,
           totalEntregas: sorted.length,
@@ -715,6 +806,7 @@ export const SupervisorDashboard = () => {
         }));
       } else {
         setTodayDeliveries([]);
+        setTodayDeliveriesPage(1);
         setStats(prev => ({
           ...prev,
           totalEntregas: 0,
@@ -731,6 +823,7 @@ export const SupervisorDashboard = () => {
       }
     } catch (error) {
       setTodayDeliveries([]);
+      setTodayDeliveriesPage(1);
       toast({
         title: 'Erro ao carregar entregas',
         description: 'Não foi possível carregar as entregas do dia.',
@@ -935,6 +1028,40 @@ export const SupervisorDashboard = () => {
     setDriverQuery('');
     setReceiptsPage(1);
     void loadFinishedDeliveries({});
+  };
+
+  const downloadTodayDeliveriesCsv = () => {
+    const rows = todayDeliveriesFiltered.map((d) => ({
+      delivery_id: d.id,
+      nf_number: d.nfNumber,
+      client_name: d.clientName,
+      driver_name: d.driverName,
+      status: d.statusLabel,
+      address: d.address,
+      created_at: d.createdAt,
+    }));
+    if (!rows.length) {
+      return;
+    }
+
+    const header = Object.keys(rows[0]).join(',') + '\n';
+    const body = rows
+      .map((row) =>
+        Object.values(row)
+          .map((value) => `"${String(value ?? '').replace(/"/g, '""')}"`)
+          .join(',')
+      )
+      .join('\n');
+    const csv = header + body;
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `entregas_dia_${new Date().toISOString().slice(0, 10)}.csv`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
   };
 
   const downloadCsv = () => {
@@ -1345,57 +1472,128 @@ export const SupervisorDashboard = () => {
             <div className="flex flex-1 items-center justify-center py-8">
               <div className="h-6 w-6 animate-spin rounded-full border-2 border-primary/30 border-t-primary" />
             </div>
-          ) : todayDeliveries.length ? (
-            <ScrollArea className="flex-1 max-h-[70vh]">
-              {/* Visualizacao Mobile (Cartões) */}
-              <div className="space-y-3 lg:hidden pr-4">
-                {todayDeliveries.map((delivery) => (
-                  <div key={delivery.id} className="rounded-lg border p-3 text-sm">
-                    <div className="flex items-start justify-between">
-                      <div>
-                        <p className="font-medium">NF {delivery.nfNumber}</p>
-                        <p className="text-xs text-muted-foreground">{delivery.clientName}</p>
-                      </div>
-                      <p className="text-xs text-muted-foreground">{formatDateTime(delivery.createdAt)}</p>
+          ) : todayDeliveriesList.length ? (
+            <div className="flex-1 overflow-hidden">
+              <div className="flex items-center justify-end gap-2 mb-3">
+                <div className="ml-auto">
+                  <Button
+                    variant="default"
+                    size="sm"
+                    onClick={downloadTodayDeliveriesCsv}
+                    disabled={deliveriesLoading || todayDeliveriesTotalFiltered === 0}
+                  >
+                    <Download className="mr-2 h-4 w-4" />
+                    Baixar CSV
+                  </Button>
+                </div>
+              </div>
+              <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between mb-3">
+                <div className="relative w-full md:max-w-xs">
+                  <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                  <Input
+                    value={todayDeliveriesSearchTerm}
+                    onChange={(event) => setTodayDeliveriesSearchTerm(event.target.value)}
+                    placeholder="Pesquisar NF, cliente, motorista ou endere?o..."
+                    aria-label="Pesquisar entregas do dia"
+                    className="pl-9"
+                    disabled={deliveriesLoading}
+                  />
+                </div>
+                <div className="flex flex-col gap-1 text-sm text-muted-foreground md:flex-row md:items-center md:gap-3">
+                  <span>
+                    {todayDeliveriesTotalFiltered}{' '}
+                    {todayDeliveriesTotalFiltered === 1 ? 'entrega encontrada' : 'entregas encontradas'}
+                  </span>
+                  <span>
+                    Pagina {todayDeliveriesPage} de {todayDeliveriesTotalPages}
+                  </span>
+                </div>
+              </div>
+              {todayDeliveriesFiltered.length ? (
+                <>
+                  <ScrollArea className="flex-1 max-h-[70vh]">
+                    {/* Visualizacao Mobile (Cart?es) */}
+                    <div className="space-y-3 lg:hidden pr-4">
+                      {paginatedTodayDeliveries.map((delivery) => (
+                        <div key={delivery.id} className="rounded-lg border p-3 text-sm">
+                          <div className="flex items-start justify-between">
+                            <div>
+                              <p className="font-medium">NF {delivery.nfNumber}</p>
+                              <p className="text-xs text-muted-foreground">{delivery.clientName}</p>
+                            </div>
+                            <p className="text-xs text-muted-foreground">{formatDateTime(delivery.createdAt)}</p>
+                          </div>
+                          <p className="text-xs text-muted-foreground mt-1">Motorista: {delivery.driverName}</p>
+                          <p className="text-xs text-muted-foreground mt-1">Status: {delivery.statusLabel}</p>
+                          <p className="text-xs text-muted-foreground mt-2 flex items-start gap-2">
+                            <MapPin className="h-3 w-3 mt-0.5 flex-shrink-0" />
+                            <span>{delivery.address}</span>
+                          </p>
+                        </div>
+                      ))}
                     </div>
-                    <p className="text-xs text-muted-foreground mt-1">Motorista: {delivery.driverName}</p>
-                    <p className="text-xs text-muted-foreground mt-1">Status: {delivery.statusLabel}</p>
-                    <p className="text-xs text-muted-foreground mt-2 flex items-start gap-2">
-                      <MapPin className="h-3 w-3 mt-0.5 flex-shrink-0" />
-                      <span>{delivery.address}</span>
-                    </p>
-                  </div>
-                ))}
-              </div>
 
-              {/* Visualizacao Desktop (Tabela) */}
-              <div className="hidden lg:block">
-                <table className="w-full min-w-[720px] text-left text-sm">
-                  <thead className="border-b">
-                    <tr className="text-muted-foreground">
-                      <th className="py-2 pr-4 font-medium">NF</th>
-                      <th className="py-2 pr-4 font-medium">Cliente</th>
-                      <th className="py-2 pr-4 font-medium">Motorista</th>
-                      <th className="py-2 pr-4 font-medium">Status</th>
-                      <th className="py-2 pr-4 font-medium">Horário</th>
-                      <th className="py-2 font-medium">Endereço</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {todayDeliveries.map((delivery) => (
-                      <tr key={delivery.id} className="border-b last:border-none">
-                        <td className="py-2 pr-4 font-medium">{delivery.nfNumber}</td>
-                        <td className="py-2 pr-4">{delivery.clientName}</td>
-                        <td className="py-2 pr-4">{delivery.driverName}</td>
-                        <td className="py-2 pr-4">{delivery.statusLabel}</td>
-                        <td className="py-2 pr-4">{formatDateTime(delivery.createdAt)}</td>
-                        <td className="py-2">{delivery.address}</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            </ScrollArea>
+                    {/* Visualizacao Desktop (Tabela) */}
+                    <div className="hidden lg:block">
+                      <table className="w-full min-w-[720px] text-left text-sm">
+                        <thead className="border-b">
+                          <tr className="text-muted-foreground">
+                            <th className="py-2 pr-4 font-medium">NF</th>
+                            <th className="py-2 pr-4 font-medium">Cliente</th>
+                            <th className="py-2 pr-4 font-medium">Motorista</th>
+                            <th className="py-2 pr-4 font-medium">Status</th>
+                            <th className="py-2 pr-4 font-medium">Hor?rio</th>
+                            <th className="py-2 font-medium">Endere?o</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {paginatedTodayDeliveries.map((delivery) => (
+                            <tr key={delivery.id} className="border-b last:border-none">
+                              <td className="py-2 pr-4 font-medium">{delivery.nfNumber}</td>
+                              <td className="py-2 pr-4">{delivery.clientName}</td>
+                              <td className="py-2 pr-4">{delivery.driverName}</td>
+                              <td className="py-2 pr-4">{delivery.statusLabel}</td>
+                              <td className="py-2 pr-4">{formatDateTime(delivery.createdAt)}</td>
+                              <td className="py-2">{delivery.address}</td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  </ScrollArea>
+                  <div className="flex flex-col gap-2 py-2 text-sm text-muted-foreground md:flex-row md:items-center md:justify-between">
+                    <p>
+                      Mostrando {todayDeliveriesRangeStart}-{todayDeliveriesRangeEnd} de {todayDeliveriesTotalFiltered}{' '}
+                      {todayDeliveriesTotalFiltered === 1 ? 'entrega' : 'entregas'}
+                    </p>
+                    <div className="flex items-center gap-2">
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => setTodayDeliveriesPage((prev) => Math.max(1, prev - 1))}
+                        disabled={todayDeliveriesPage <= 1}
+                      >
+                        Anterior
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() =>
+                          setTodayDeliveriesPage((prev) => Math.min(todayDeliveriesTotalPages, prev + 1))
+                        }
+                        disabled={todayDeliveriesPage >= todayDeliveriesTotalPages}
+                      >
+                        Proxima
+                      </Button>
+                    </div>
+                  </div>
+                </>
+              ) : (
+                <p className="py-4 text-sm text-muted-foreground">
+                  Nenhuma entrega encontrada para a pesquisa.
+                </p>
+              )}
+            </div>
           ) : (
             <p className="py-4 text-sm text-muted-foreground">Nenhuma entrega cadastrada hoje até o momento.</p>
           )}
