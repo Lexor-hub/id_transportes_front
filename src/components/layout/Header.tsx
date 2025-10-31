@@ -75,24 +75,20 @@ export const Header = () => {
           { href: '/dashboard', label: 'Dashboard Master', icon: Home },
           { href: '/dashboard/empresas', label: 'Empresas', icon: Building },
           { href: '/dashboard/usuarios', label: 'Usuários', icon: Users },
-          { href: '/dashboard/relatorios', label: 'Relatórios', icon: BarChart3 },
+          // Relatórios removido da navbar
         ];
       case 'ADMIN':
         return [
           { href: '/dashboard', label: 'Dashboard', icon: Home },
           { href: '/dashboard/usuarios', label: 'Usuários', icon: Users },
           { href: '/dashboard/veiculos', label: 'Veículos', icon: Truck },
-          { href: '/dashboard/entregas', label: 'Canhotos', icon: FileText },
-          { href: '/dashboard/relatorios', label: 'Relatórios', icon: BarChart3 },
-          { href: '/dashboard/rastreamento', label: 'Rastreamento', icon: MapPin },
+          // Canhotos, Relatórios e Rastreamento removidos da navbar
         ];
       case 'SUPERVISOR':
       case 'OPERATOR':
         return [
           { href: '/dashboard', label: 'Dashboard', icon: Home },
-          { href: '/dashboard/entregas', label: 'Canhotos', icon: FileText },
-          { href: '/dashboard/relatorios', label: 'Relatórios', icon: BarChart3 },
-          { href: '/dashboard/rastreamento', label: 'Rastreamento', icon: MapPin },
+          // Canhotos, Relatórios e Rastreamento removidos da navbar
         ];
       case 'DRIVER':
       case 'MOTORISTA':
@@ -102,7 +98,7 @@ export const Header = () => {
       case 'CLIENT':
         return [
           { href: '/dashboard', label: 'Minhas Entregas', icon: Package },
-          { href: '/dashboard/relatorios', label: 'Relatórios', icon: BarChart3 },
+          // Relatórios removido da navbar
         ];
       default:
         return [];
