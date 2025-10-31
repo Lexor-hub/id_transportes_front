@@ -682,6 +682,19 @@ export const SupervisorDashboard = () => {
             .sort((a, b) => a.name.localeCompare(b.name, 'pt-BR'));
 
           setDriverStatuses(deduped);
+          const activeDriversCount = deduped.filter(
+            (driver) => driver.status !== 'stopped'
+          ).length;
+          setStats((prev) => ({
+            ...prev,
+            motoristasAtivos: activeDriversCount,
+          }));
+        } else {
+          setDriverStatuses([]);
+          setStats((prev) => ({
+            ...prev,
+            motoristasAtivos: 0,
+          }));
         }
       } catch (error) {
         if (!silent) {
@@ -691,6 +704,10 @@ export const SupervisorDashboard = () => {
             variant: 'destructive',
           });
         }
+        setStats((prev) => ({
+          ...prev,
+          motoristasAtivos: 0,
+        }));
       } finally {
         if (!silent) {
           setDriversLoading(false);
@@ -1412,34 +1429,37 @@ export const SupervisorDashboard = () => {
                   <div className="h-6 w-6 animate-spin rounded-full border-2 border-primary/30 border-t-primary" />
                 </div>
               ) : driverStatuses.length ? (
-                <div className="space-y-3">
-                  {driverStatuses.map((driver) => {
-                    const statusStyles = getMovementStatusTw(driver.status);
-                    const safeSpeed = driver.speed < 0 ? 0 : driver.speed;
-                    const formattedSpeed = safeSpeed.toFixed(1);
-                    return (
-                      <div
-                        key={driver.id}
-                        className={`flex items-center justify-between rounded-lg p-3 ${statusStyles.container}`}
-                      >
-                        <div>
-                          <p className={`text-sm font-semibold ${statusStyles.text}`}>{driver.name}</p>
-                          <p className="text-xs text-muted-foreground">
-                            {formatRelativeTime(driver.lastUpdate)} - {formattedSpeed} km/h
-                          </p>
-                          {driver.vehicleLabel && (
-                            <p className="text-xs text-muted-foreground">Veiculo: {driver.vehicleLabel}</p>
-                          )}
-                        </div>
-                        <span
-                          className={`inline-flex items-center rounded-md px-2 py-1 text-xs font-semibold ${statusStyles.badge}`}
+                // Wrap driver status list in a scroll area so it gets a scrollbar on overflow
+                <ScrollArea className="max-h-[40vh] pr-2">
+                  <div className="space-y-3">
+                    {driverStatuses.map((driver) => {
+                      const statusStyles = getMovementStatusTw(driver.status);
+                      const safeSpeed = driver.speed < 0 ? 0 : driver.speed;
+                      const formattedSpeed = safeSpeed.toFixed(1);
+                      return (
+                        <div
+                          key={driver.id}
+                          className={`flex items-center justify-between rounded-lg p-3 ${statusStyles.container}`}
                         >
-                          {MOVEMENT_STATUS_LABEL[driver.status]}
-                        </span>
-                      </div>
-                    );
-                  })}
-                </div>
+                          <div>
+                            <p className={`text-sm font-semibold ${statusStyles.text}`}>{driver.name}</p>
+                            <p className="text-xs text-muted-foreground">
+                              {formatRelativeTime(driver.lastUpdate)} - {formattedSpeed} km/h
+                            </p>
+                            {driver.vehicleLabel && (
+                              <p className="text-xs text-muted-foreground">Veiculo: {driver.vehicleLabel}</p>
+                            )}
+                          </div>
+                          <span
+                            className={`inline-flex items-center rounded-md px-2 py-1 text-xs font-semibold ${statusStyles.badge}`}
+                          >
+                            {MOVEMENT_STATUS_LABEL[driver.status]}
+                          </span>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </ScrollArea>
               ) : (
                 <p className="text-sm text-muted-foreground">
                   Nenhum motorista com rastreamento ativo no momento.
@@ -1461,22 +1481,25 @@ export const SupervisorDashboard = () => {
                 <div className="h-6 w-6 animate-spin rounded-full border-2 border-primary/30 border-t-primary" />
               </div>
             ) : combinedAlerts.length ? (
-              <div className="space-y-3">
-                {combinedAlerts.map((alert) => {
-                  const style = ALERT_STYLE[alert.severity];
-                  const Icon = style.icon;
-                  return (
-                    <div key={alert.id} className={`flex items-center gap-3 p-3 rounded-lg ${style.container}`}>
-                      <Icon className={`h-5 w-5 ${style.iconClass}`} />
-                      <div className="flex-1">
-                        <p className="font-medium">{alert.title}</p>
-                        <p className="text-sm text-muted-foreground">{alert.description}</p>
+              // Wrap alerts list in a scroll area so it gets a scrollbar on overflow
+              <ScrollArea className="max-h-[40vh] pr-2">
+                <div className="space-y-3">
+                  {combinedAlerts.map((alert) => {
+                    const style = ALERT_STYLE[alert.severity];
+                    const Icon = style.icon;
+                    return (
+                      <div key={alert.id} className={`flex items-center gap-3 p-3 rounded-lg ${style.container}`}>
+                        <Icon className={`h-5 w-5 ${style.iconClass}`} />
+                        <div className="flex-1">
+                          <p className="font-medium">{alert.title}</p>
+                          <p className="text-sm text-muted-foreground">{alert.description}</p>
+                        </div>
+                        <span className="text-xs text-muted-foreground">{formatRelativeTime(alert.timestamp)}</span>
                       </div>
-                      <span className="text-xs text-muted-foreground">{formatRelativeTime(alert.timestamp)}</span>
-                    </div>
-                  );
-                })}
-              </div>
+                    );
+                  })}
+                </div>
+              </ScrollArea>
             ) : (
               <p className="text-sm text-muted-foreground">Sem alertas no momento.</p>
             )}
