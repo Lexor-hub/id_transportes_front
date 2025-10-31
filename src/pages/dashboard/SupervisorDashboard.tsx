@@ -135,6 +135,23 @@ const DRIVER_REPORT_PAGE_SIZE_MOBILE = 3;
 const DRIVER_REPORT_MOBILE_BREAKPOINT = 1024; // matches tailwind lg breakpoint
 const EMPTY_DRIVER_REPORT_LIST: DriverReportEntry[] = [];
 
+const isSameDayIso = (value: string | undefined, targetIso: string) => {
+  if (!value) return false;
+  const trimmed = value.trim();
+  if (!trimmed) return false;
+
+  if (/^\d{4}-\d{2}-\d{2}$/.test(trimmed)) {
+    return trimmed === targetIso;
+  }
+
+  const parsed = new Date(trimmed);
+  if (!Number.isNaN(parsed.getTime())) {
+    return parsed.toISOString().slice(0, 10) === targetIso;
+  }
+
+  return trimmed.slice(0, 10) === targetIso;
+};
+
 const TODAY_DELIVERIES_PAGE_SIZE_DESKTOP = 10;
 const TODAY_DELIVERIES_PAGE_SIZE_MOBILE = 3;
 const EMPTY_TODAY_DELIVERIES_LIST: TodayDelivery[] = [];
@@ -793,16 +810,21 @@ export const SupervisorDashboard = () => {
           } as TodayDelivery;
         });
 
-        // CORREÇÃO: O backend já retorna a lista correta, então o filtro de data no frontend foi removido.
-        const sorted = deliveriesData.sort((a, b) => toTimestamp(b.createdAt) - toTimestamp(a.createdAt));
+        const todaysDeliveries = deliveriesData.filter((delivery) =>
+          isSameDayIso(delivery.createdAt, todayIso)
+        );
 
-        setTodayDeliveries(sorted);
+        const sortedToday = todaysDeliveries.sort(
+          (a, b) => toTimestamp(b.createdAt) - toTimestamp(a.createdAt)
+        );
+
+        setTodayDeliveries(sortedToday);
         setTodayDeliveriesPage(1);
         setStats(prev => ({
           ...prev,
-          totalEntregas: sorted.length,
-          entregasRealizadas: sorted.filter(d => d.statusLabel === 'Realizada').length,
-          entregasPendentes: sorted.filter(d => d.statusLabel === 'Em andamento').length,
+          totalEntregas: sortedToday.length,
+          entregasRealizadas: sortedToday.filter(d => d.statusLabel === 'Realizada').length,
+          entregasPendentes: sortedToday.filter(d => d.statusLabel === 'Em andamento').length,
         }));
       } else {
         setTodayDeliveries([]);
