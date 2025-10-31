@@ -13,6 +13,7 @@ import {
   Users, 
   MapPin,
   FileText,
+  Activity,
   Search,
   RefreshCw,
   Award,
@@ -23,16 +24,16 @@ import {
 import { apiService } from '@/services/api';
 import { useToast } from '@/hooks/use-toast';
 import { DeliveryUpload } from '@/components/delivery/DeliveryUpload';
-import { computeMovementStatus, MovementStatus } from '@/lib/driver-status';
+import { computeMovementStatus, MovementStatus, getMovementStatusTw, MOVEMENT_STATUS_LABEL } from '@/lib/driver-status';
 
 type DriverStatusItem = {
   id: string;
   name: string;
   speed: number;
-  lastUpdate?: string | null;
+  lastUpdate: string | null;
   status: MovementStatus;
-  vehicleId?: string | null;
-  vehicleLabel?: string | null;
+  vehicleId: string | null;
+  vehicleLabel: string | null;
 };
 
 type TodayDelivery = {
@@ -107,6 +108,7 @@ export const AdminDashboard = () => {
   
   // Estados do SupervisorDashboard
   const [driverStatuses, setDriverStatuses] = useState<DriverStatusItem[]>([]);
+  const [driversLoading, setDriversLoading] = useState(false);
   const [showReceiptsModal, setShowReceiptsModal] = useState(false);
   const [finishedDeliveries, setFinishedDeliveries] = useState<TodayDelivery[]>([]);
   const [receiptsLoading, setReceiptsLoading] = useState(false);
@@ -185,6 +187,7 @@ export const AdminDashboard = () => {
 
   const loadDriverStatuses = useCallback(async ({ silent = false }: { silent?: boolean } = {}) => {
     try {
+      if (!silent) setDriversLoading(true);
       const response = await apiService.getCurrentLocations();
       if (response.success && Array.isArray(response.data)) {
         const now = Date.now();
@@ -208,6 +211,8 @@ export const AdminDashboard = () => {
       }
     } catch (error) {
       if (!silent) toast({ title: 'Falha ao carregar status dos motoristas.', variant: 'destructive' });
+    } finally {
+      if (!silent) setDriversLoading(false);
     }
   }, [toast]);
 
@@ -378,43 +383,102 @@ export const AdminDashboard = () => {
           </CardContent>
         </Card>
 
-        {/* Alerts and Notifications */}
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <AlertTriangle className="h-5 w-5" />
-              Alertas e Notificações
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            {alertsLoading ? (
-              <div className="flex h-24 items-center justify-center">
-                <div className="h-6 w-6 animate-spin rounded-full border-2 border-primary/30 border-t-primary" />
-              </div>
-            ) : combinedAlerts.length ? (
-              <ScrollArea className="max-h-80">
-                <div className="space-y-3 pr-4">
-                  {combinedAlerts.map((alert) => {
-                    const style = ALERT_STYLE[alert.severity];
-                    const Icon = style.icon;
-                    return (
-                      <div key={alert.id} className={`flex items-start gap-3 p-3 rounded-lg ${style.container}`}>
-                        <Icon className={`h-5 w-5 flex-shrink-0 mt-0.5 ${style.iconClass}`} />
-                        <div className="flex-1">
-                          <p className="font-medium">{alert.title}</p>
-                          <p className="text-sm text-muted-foreground">{alert.description}</p>
-                        </div>
-                        <span className="text-xs text-muted-foreground whitespace-nowrap">{formatRelativeTime(alert.timestamp)}</span>
-                      </div>
-                    );
-                  })}
+        {/* Right column: Driver Status (copied from Supervisor) and Alerts */}
+        <div className="space-y-6">
+          {/* Driver Status (copied logic from SupervisorDashboard) */}
+          <Card>
+            <CardHeader className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+              <CardTitle className="flex items-center gap-2">
+                <Activity className="h-5 w-5" />
+                Status dos Motoristas
+              </CardTitle>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => loadDriverStatuses()}
+                disabled={driversLoading}
+                className="w-full sm:w-auto"
+              >
+                <RefreshCw className={`mr-2 h-4 w-4 ${driversLoading ? 'animate-spin' : ''}`} />
+                Atualizar
+              </Button>
+            </CardHeader>
+            <CardContent>
+              {driversLoading ? (
+                <div className="flex h-24 items-center justify-center">
+                  <div className="h-6 w-6 animate-spin rounded-full border-2 border-primary/30 border-t-primary" />
                 </div>
-              </ScrollArea>
-            ) : (
-              <p className="text-sm text-muted-foreground">Sem alertas no momento.</p>
-            )}
-          </CardContent>
-        </Card>
+              ) : driverStatuses.length ? (
+                <ScrollArea className="max-h-[40vh] pr-2">
+                  <div className="space-y-3">
+                    {driverStatuses.map((driver) => {
+                      const statusStyles = getMovementStatusTw(driver.status);
+                      const safeSpeed = Math.max(0, Number(driver.speed ?? 0));
+                      const showSpeed = safeSpeed >= 1;
+                      const formattedSpeed = showSpeed ? safeSpeed.toFixed(1) : null;
+                      return (
+                        <div key={driver.id} className={`flex items-center justify-between rounded-lg p-3 ${statusStyles.container}`}>
+                          <div>
+                            <p className={`text-sm font-semibold ${statusStyles.text}`}>{driver.name}</p>
+                            <p className="text-xs text-muted-foreground">
+                              {formatRelativeTime(driver.lastUpdate)}{formattedSpeed ? ` - ${formattedSpeed} km/h` : ''}
+                            </p>
+                            {driver.vehicleLabel && (
+                              <p className="text-xs text-muted-foreground">Veiculo: {driver.vehicleLabel}</p>
+                            )}
+                          </div>
+                          <span className={`inline-flex items-center rounded-md px-2 py-1 text-xs font-semibold ${statusStyles.badge}`}>
+                            {MOVEMENT_STATUS_LABEL[driver.status]}
+                          </span>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </ScrollArea>
+              ) : (
+                <p className="text-sm text-muted-foreground">Nenhum motorista com rastreamento ativo no momento.</p>
+              )}
+            </CardContent>
+          </Card>
+
+          {/* Alerts and Notifications (adjusted to match Supervisor sizing) */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <AlertTriangle className="h-5 w-5" />
+                Alertas e Notificações
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              {alertsLoading ? (
+                <div className="flex h-24 items-center justify-center">
+                  <div className="h-6 w-6 animate-spin rounded-full border-2 border-primary/30 border-t-primary" />
+                </div>
+              ) : combinedAlerts.length ? (
+                <ScrollArea className="max-h-[40vh] pr-2">
+                  <div className="space-y-3">
+                    {combinedAlerts.map((alert) => {
+                      const style = ALERT_STYLE[alert.severity];
+                      const Icon = style.icon;
+                      return (
+                        <div key={alert.id} className={`flex items-start gap-3 p-3 rounded-lg ${style.container}`}>
+                          <Icon className={`h-5 w-5 flex-shrink-0 mt-0.5 ${style.iconClass}`} />
+                          <div className="flex-1">
+                            <p className="font-medium">{alert.title}</p>
+                            <p className="text-sm text-muted-foreground">{alert.description}</p>
+                          </div>
+                          <span className="text-xs text-muted-foreground whitespace-nowrap">{formatRelativeTime(alert.timestamp)}</span>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </ScrollArea>
+              ) : (
+                <p className="text-sm text-muted-foreground">Sem alertas no momento.</p>
+              )}
+            </CardContent>
+          </Card>
+        </div>
       </div>
 
       {/* System Status */}
