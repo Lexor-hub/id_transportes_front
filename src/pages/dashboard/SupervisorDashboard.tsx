@@ -477,66 +477,104 @@ export const SupervisorDashboard = () => {
             if (vehicleResponse.success && Array.isArray(vehicleResponse.data)) currentVehicles = vehicleResponse.data;
           }
           const now = Date.now();
-          const normalized: DriverStatusItem[] = (response.data as Array<Record<string, unknown>>)
-            .map((raw) => {
-              const driver = (raw ?? {}) as Record<string, unknown>;
-              const id = (driver['driver_id'] ?? driver['id']) as string | number | undefined;
+          const rawEntries = response.data as Array<Record<string, unknown>>;
+          const driverMap = new Map<string, { item: DriverStatusItem; lastUpdateMs: number }>();
+          const nowMs = Date.now();
 
-              if (id === undefined || id === null) {
-                return null;
-              }
+          for (const raw of rawEntries) {
+            const driver = (raw ?? {}) as Record<string, unknown>;
+            const idValue =
+              driver['driver_id'] ?? driver['id'] ?? driver['driverId'] ?? driver['user_id'];
 
-              const speedValueRaw = driver['speed'];
-              const speedValue = Number(speedValueRaw ?? 0);
-              const safeSpeed = Number.isFinite(speedValue) ? speedValue : 0;
-              const lastUpdateValue = driver['last_update'];
+            if (idValue === undefined || idValue === null) {
+              continue;
+            }
 
-              const vehicleIdRaw = driver['vehicle_id'] ?? driver['vehicleId'];
-              const vehicleLabelRaw = driver['vehicle_label'] ?? driver['vehicleLabel'];
-              const vehicleId = vehicleIdRaw != null ? String(vehicleIdRaw) : null;
-              const normalizedVehicleLabelRaw =
-                vehicleLabelRaw != null ? String(vehicleLabelRaw) : null;
-              // CORREÇÃO: Busca o label do veículo se não vier da API
-              let vehicleFromList: Vehicle | undefined;
+            const driverId = String(idValue);
 
-              if (vehicleId) {
-                vehicleFromList = currentVehicles.find((v) => String(v.id) === vehicleId);
-              }
+            const backendStatusRaw =
+              typeof driver['status'] === 'string' ? driver['status'].toLowerCase().trim() : null;
+            const isBackendActive =
+              backendStatusRaw === 'active' || backendStatusRaw === 'busy' || backendStatusRaw === 'on_route';
 
-              if (!vehicleFromList && normalizedVehicleLabelRaw) {
-                const normalizedPlate = normalizedVehicleLabelRaw.toLowerCase();
-                vehicleFromList = currentVehicles.find(
-                  (v) => String(v.plate ?? '').toLowerCase() === normalizedPlate
-                );
-              }
+            const speedValueRaw = Number(driver['speed'] ?? 0);
+            const safeSpeed = Number.isFinite(speedValueRaw) ? speedValueRaw : 0;
+            const isMoving = Math.abs(safeSpeed) >= 1;
 
-              const vehiclePlateLabel =
-                vehicleFromList?.plate != null
-                  ? String(vehicleFromList.plate).toUpperCase()
-                  : null;
+            const lastUpdateRaw = driver['last_update'];
+            const lastUpdate =
+              typeof lastUpdateRaw === 'string' && lastUpdateRaw.trim().length
+                ? lastUpdateRaw
+                : null;
+            const parsedLastUpdate = lastUpdate ? new Date(lastUpdate).getTime() : NaN;
+            const lastUpdateMs = Number.isNaN(parsedLastUpdate) ? 0 : parsedLastUpdate;
+            const isRecent = lastUpdateMs > 0 && nowMs - lastUpdateMs <= 10 * 60 * 1000;
 
-              const vehicleLabel = vehiclePlateLabel ?? normalizedVehicleLabelRaw;
+            const shouldDisplay = isBackendActive || (isMoving && isRecent);
+            if (!shouldDisplay) {
+              driverMap.delete(driverId);
+              continue;
+            }
 
-              return {
-                id: String(id),
-                name: String(driver['driver_name'] ?? 'Motorista'),
-                speed: safeSpeed,
-                lastUpdate: typeof lastUpdateValue === 'string' ? lastUpdateValue : null,
-                status: computeMovementStatus(
-                  {
-                    speed: typeof speedValueRaw === 'number' ? speedValueRaw : safeSpeed,
-                    last_update: typeof lastUpdateValue === 'string' ? lastUpdateValue : null,
-                  },
-                  now
-                ),
-                vehicleId,
-                vehicleLabel,
-              } as DriverStatusItem | null;
-            })
-            .filter((item): item is DriverStatusItem => Boolean(item))
+            const vehicleIdRaw = driver['vehicle_id'] ?? driver['vehicleId'];
+            const vehicleLabelRaw = driver['vehicle_label'] ?? driver['vehicleLabel'];
+            const vehicleId = vehicleIdRaw != null ? String(vehicleIdRaw) : null;
+            const normalizedVehicleLabelRaw =
+              vehicleLabelRaw != null ? String(vehicleLabelRaw) : null;
+
+            let vehicleFromList: Vehicle | undefined;
+            if (vehicleId) {
+              vehicleFromList = currentVehicles.find((v) => String(v.id) === vehicleId);
+            }
+
+            if (!vehicleFromList && normalizedVehicleLabelRaw) {
+              const normalizedPlate = normalizedVehicleLabelRaw.toLowerCase();
+              vehicleFromList = currentVehicles.find(
+                (v) => String(v.plate ?? '').toLowerCase() === normalizedPlate
+              );
+            }
+
+            const vehiclePlateLabel =
+              vehicleFromList?.plate != null
+                ? String(vehicleFromList.plate).toUpperCase()
+                : null;
+
+            const vehicleLabel = vehiclePlateLabel ?? normalizedVehicleLabelRaw;
+
+            const displayNameRaw =
+              driver['driver_name'] ?? driver['name'] ?? driver['full_name'] ?? driver['username'];
+            const displayName =
+              typeof displayNameRaw === 'string' && displayNameRaw.trim().length
+                ? displayNameRaw
+                : 'Motorista';
+
+            const item: DriverStatusItem = {
+              id: driverId,
+              name: String(displayName),
+              speed: safeSpeed,
+              lastUpdate,
+              status: computeMovementStatus(
+                {
+                  speed: safeSpeed,
+                  last_update: lastUpdate,
+                },
+                nowMs
+              ),
+              vehicleId,
+              vehicleLabel,
+            };
+
+            const existing = driverMap.get(driverId);
+            if (!existing || lastUpdateMs >= existing.lastUpdateMs) {
+              driverMap.set(driverId, { item, lastUpdateMs });
+            }
+          }
+
+          const deduped = Array.from(driverMap.values())
+            .map((entry) => entry.item)
             .sort((a, b) => a.name.localeCompare(b.name, 'pt-BR'));
 
-          setDriverStatuses(normalized);
+          setDriverStatuses(deduped);
         }
       } catch (error) {
         if (!silent) {
