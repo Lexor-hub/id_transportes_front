@@ -20,6 +20,56 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [loading, setLoading] = useState(true);
   const { toast } = useToast();
 
+  const buildCompanyFromSources = (
+    primary?: Partial<Company> & Record<string, any>,
+    fallbackUser?: Partial<User> & Record<string, any>
+  ): Company | null => {
+    const rawId =
+      primary?.id ?? primary?.company_id ?? fallbackUser?.company_id;
+
+    if (!rawId) {
+      return null;
+    }
+
+    const normalizedCompany: Company = {
+      id: String(rawId),
+      name:
+        primary?.name ??
+        primary?.company_name ??
+        fallbackUser?.company_name ??
+        '',
+      domain:
+        primary?.domain ??
+        primary?.company_domain ??
+        fallbackUser?.company_domain ??
+        '',
+      email:
+        primary?.email ??
+        primary?.company_email ??
+        fallbackUser?.company_email ??
+        '',
+      logo: primary?.logo ?? fallbackUser?.company_logo,
+      primary_color:
+        primary?.primary_color ?? fallbackUser?.company_primary_color,
+      secondary_color:
+        primary?.secondary_color ?? fallbackUser?.company_secondary_color,
+      status:
+        (primary?.status as Company['status']) ?? 'ACTIVE',
+      subscription_plan:
+        primary?.subscription_plan ?? fallbackUser?.company_subscription_plan,
+      max_users:
+        primary?.max_users ?? fallbackUser?.company_max_users,
+      max_drivers:
+        primary?.max_drivers ?? fallbackUser?.company_max_drivers,
+      created_at:
+        primary?.created_at ?? fallbackUser?.company_created_at ?? '',
+      updated_at:
+        primary?.updated_at ?? fallbackUser?.company_updated_at ?? '',
+    };
+
+    return normalizedCompany;
+  };
+
   useEffect(() => {
     // Check for stored auth data on app load
     const token = localStorage.getItem('id_transporte_token');
@@ -32,16 +82,29 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     
     if (token && userData) {
       try {
-        const parsedUser = JSON.parse(userData);
-        console.log('Usuário carregado:', parsedUser);
+        const parsedUser: User = JSON.parse(userData);
+        console.log('Usuario carregado:', parsedUser);
         setUser(parsedUser);
+
+        let effectiveCompany: Company | null = null;
+
         if (companyData) {
           const parsedCompany = JSON.parse(companyData);
-          console.log('Empresa carregada:', parsedCompany);
-          setCompany(parsedCompany);
+          console.log('Empresa carregada do storage:', parsedCompany);
+          effectiveCompany = buildCompanyFromSources(parsedCompany, parsedUser);
+        } else {
+          effectiveCompany = buildCompanyFromSources(undefined, parsedUser);
+          if (effectiveCompany) {
+            localStorage.setItem('id_transporte_company', JSON.stringify(effectiveCompany));
+          }
+        }
+
+        if (effectiveCompany) {
+          setCompany(effectiveCompany);
           setAuthStep('complete');
         } else {
-          // Se tem token mas não tem empresa, precisa selecionar
+          setCompany(null);
+          // Se tem token mas nao tem empresa, precisa selecionar
           setAuthStep('company');
         }
       } catch (error) {
@@ -132,7 +195,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       
       if (response.success && response.data) {
         const { user: userData, token } = response.data;
-        
+
         // Mapeamento de roles do backend para o frontend
         const roleMap: Record<string, string> = {
           MASTER: 'MASTER',
@@ -145,25 +208,42 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           MOTORISTA: 'DRIVER',
           OPERADOR: 'OPERATOR',
         };
-        
-        const mappedUser = { 
-          ...userData, 
+
+        const mappedUser = {
+          ...userData,
           role: roleMap[userData.user_type] || userData.user_type,
           name: userData.full_name || userData.name
         };
-        
+
+        const rawCompany = (response.data as any).company;
+        const mappedCompany =
+          buildCompanyFromSources(rawCompany, mappedUser) ??
+          buildCompanyFromSources(undefined, mappedUser);
+
         // Store final token (with company_id)
         localStorage.setItem('id_transporte_token', token);
         localStorage.setItem('id_transporte_user', JSON.stringify(mappedUser));
+        if (mappedCompany) {
+          localStorage.setItem('id_transporte_company', JSON.stringify(mappedCompany));
+        } else {
+          localStorage.removeItem('id_transporte_company');
+        }
         localStorage.removeItem('temp_token');
         localStorage.removeItem('temp_user');
-        
+
         console.log('Token final salvo:', token);
-        console.log('Usuário final salvo:', mappedUser);
-        
+        console.log('Usuario final salvo:', mappedUser);
+        console.log('Empresa final salva:', mappedCompany);
+
         setUser(mappedUser);
-        setAuthStep('complete');
-        
+        if (mappedCompany) {
+          setCompany(mappedCompany);
+          setAuthStep('complete');
+        } else {
+          setCompany(null);
+          setAuthStep('company');
+        }
+
         toast({
           title: "Empresa selecionada com sucesso!",
           description: `Acesso liberado para ${mappedUser.name}`,

@@ -8,7 +8,7 @@ import { ProtectedRoute } from "@/components/auth/ProtectedRoute";
 import { DashboardLayout } from "@/components/layout/DashboardLayout";
 import Login from "@/pages/Login";
 import { Dashboard } from "@/pages/dashboard";
-import React, { Suspense } from "react";
+import React, { Suspense, useEffect, useRef } from "react";
 import Users from "./pages/dashboard/Users";
 import Vehicles from "./pages/dashboard/Vehicles";
 // Lazy load the Tracking component to prevent potential module conflicts
@@ -20,6 +20,7 @@ import { ReceiptsReport } from "./pages/dashboard/ReceiptsReport";
 
 
 const queryClient = new QueryClient();
+const REFRESH_INTERVAL_MS = 5 * 60 * 1000;
 
 // Route wrapper component to handle initial redirect
 const AppRoutes = () => {
@@ -127,18 +128,45 @@ const AppRoutes = () => {
   );
 };
 
-const App = () => (
-  <QueryClientProvider client={queryClient}>
-    <TooltipProvider>
-      <AuthProvider>
-        <Toaster />
-        <Sonner />
-        <BrowserRouter>
-          <AppRoutes />
-        </BrowserRouter>
-      </AuthProvider>
-    </TooltipProvider>
-  </QueryClientProvider>
-);
+const App = () => {
+  const refreshTimer = useRef<number | null>(null);
+
+  useEffect(() => {
+    if (import.meta.env.DEV) {
+      return;
+    }
+
+    if (refreshTimer.current !== null) {
+      return;
+    }
+
+    refreshTimer.current = window.setInterval(() => {
+      if (!document.hidden) {
+        window.location.reload();
+      }
+    }, REFRESH_INTERVAL_MS);
+
+    return () => {
+      if (refreshTimer.current !== null) {
+        window.clearInterval(refreshTimer.current);
+        refreshTimer.current = null;
+      }
+    };
+  }, []);
+
+  return (
+    <QueryClientProvider client={queryClient}>
+      <TooltipProvider>
+        <AuthProvider>
+          <Toaster />
+          <Sonner />
+          <BrowserRouter>
+            <AppRoutes />
+          </BrowserRouter>
+        </AuthProvider>
+      </TooltipProvider>
+    </QueryClientProvider>
+  );
+};
 
 export default App;
