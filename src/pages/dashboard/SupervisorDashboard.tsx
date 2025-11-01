@@ -1173,11 +1173,11 @@ export const SupervisorDashboard = () => {
 
   const handleDeliveriesModalChange = useCallback((open: boolean) => {
     setShowDeliveriesModal(open);
-    // Only fetch the deliveries list if we don't already have it from KPIs
-    if (open && todayDeliveries.length === 0) {
+    if (open) {
+      // Always refresh the list with the full dataset from /api/deliveries
       void loadTodayDeliveries();
     }
-  }, [loadTodayDeliveries, todayDeliveries]);
+  }, [loadTodayDeliveries]);
 
   const loadFinishedDeliveries = useCallback(async (overrideFilters?: Record<string, string>) => {
     // default wrapper to call with current filters and page
