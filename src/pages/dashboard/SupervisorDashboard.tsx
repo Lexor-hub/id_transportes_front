@@ -1036,26 +1036,17 @@ export const SupervisorDashboard = () => {
         };
 
         const deliveriesData = (response.data as Array<Record<string, unknown>>).map((item) => {
-          const createdAt =
-            pickTextValue(item, DATE_FIELDS, DATE_PATTERNS) || '';
-          const hasReceipt = Boolean(item['has_receipt']);
-          const status = typeof item['status'] === 'string' ? item['status'] : '';
-          const nfNumber = pickTextValue(item, NF_NUMBER_FIELDS, NF_NUMBER_PATTERNS) || 'N/A';
-          const clientName =
-            pickTextValue(item, CLIENT_NAME_FIELDS, CLIENT_NAME_PATTERNS) || 'Cliente não identificado';
-          const driverName =
-            pickTextValue(item, DRIVER_NAME_FIELDS, DRIVER_NAME_PATTERNS) || 'Sem motorista';
-          const address =
-            pickTextValue(item, ADDRESS_FIELDS, ADDRESS_PATTERNS) || 'Endereço não informado';
+          const hasReceipt = Boolean(item.has_receipt);
+          const status = String(item.status || '');
 
           return {
             id: String(item['id'] ?? item['delivery_id'] ?? item['deliveryId'] ?? ''),
-            nfNumber,
-            clientName,
-            driverName,
-            address,
+            nfNumber: String(item.nf_number || 'N/A'),
+            clientName: String(item.client_name || 'Cliente não identificado'),
+            driverName: String(item.driver_name || 'Sem motorista'),
+            address: String(item.client_address || item.delivery_address || 'Endereço não informado'),
             statusLabel: formatDeliveryStatus(status, hasReceipt),
-            createdAt,
+            createdAt: String(item.created_at || ''),
           } as TodayDelivery;
         });
 

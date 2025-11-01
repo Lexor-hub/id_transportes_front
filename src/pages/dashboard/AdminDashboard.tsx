@@ -485,25 +485,17 @@ export const AdminDashboard = () => {
       const response = await apiService.getCanhotos();
       if (response.success && Array.isArray(response.data)) {
         const deliveriesData = (response.data as any[]).map(item => {
-          const hasReceipt = Boolean(item.receipt_id ?? item.receiptId ?? item.dr_id ?? item.dr);
-          const createdAt = pickTextValue(item, DATE_FIELDS, DATE_PATTERNS) || '';
-          const nfNumber = pickTextValue(item, NF_NUMBER_FIELDS, NF_NUMBER_PATTERNS) || 'N/A';
-          const clientName =
-            pickTextValue(item, CLIENT_NAME_FIELDS, CLIENT_NAME_PATTERNS) || 'Cliente não identificado';
-          const driverName =
-            pickTextValue(item, DRIVER_NAME_FIELDS, DRIVER_NAME_PATTERNS) || 'Sem motorista';
-          const address =
-            pickTextValue(item, ADDRESS_FIELDS, ADDRESS_PATTERNS) || 'Endereço não informado';
-          const statusLabel = formatDeliveryStatus(item.status as string, hasReceipt);
+          const hasReceipt = Boolean(item.receipt_id);
+          const statusLabel = formatDeliveryStatus(item.status, hasReceipt);
 
           return {
             id: String(item.id ?? item.delivery_id ?? ''),
-            nfNumber,
-            clientName,
-            driverName,
-            address,
+            nfNumber: String(item.nf_number || 'N/A'),
+            clientName: String(item.client_name || 'Cliente não identificado'),
+            driverName: String(item.driver_name || 'Sem motorista'),
+            address: String(item.address || 'Endereço não informado'),
             statusLabel,
-            createdAt,
+            createdAt: String(item.date || item.created_at || ''),
             receipt_image_url: String(item.image_url ?? item.receipt_image_url ?? ''),
           } as TodayDelivery;
         });
