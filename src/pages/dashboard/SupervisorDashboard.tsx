@@ -156,13 +156,28 @@ const resolvePathValue = (source: unknown, path: string): unknown => {
   if (!source || typeof source !== 'object') return null;
   const segments = path.split('.');
   let current: any = source;
+
   for (const segment of segments) {
-    if (current && typeof current === 'object' && segment in current) {
+    if (!current || typeof current !== 'object') return null;
+
+    if (segment in current) {
       current = current[segment as keyof typeof current];
-    } else {
-      return null;
+      continue;
     }
+
+    const lowerSegment = segment.toLowerCase();
+    const matchedKey = Object.keys(current as Record<string, unknown>).find(
+      (key) => key.toLowerCase() === lowerSegment
+    );
+
+    if (matchedKey) {
+      current = current[matchedKey as keyof typeof current];
+      continue;
+    }
+
+    return null;
   }
+
   return current;
 };
 
