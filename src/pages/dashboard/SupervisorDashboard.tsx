@@ -166,17 +166,78 @@ const resolvePathValue = (source: unknown, path: string): unknown => {
   return current;
 };
 
-const pickTextValue = (source: unknown, candidates: string[]): string | null => {
-  for (const path of candidates) {
-    const value = resolvePathValue(source, path);
-    if (value === undefined || value === null) continue;
-    if (typeof value === 'string') {
-      const trimmed = value.trim();
-      if (trimmed) return trimmed;
-    } else if (typeof value === 'number') {
-      return String(value);
+const sanitizeTextValue = (value: unknown): string | null => {
+  if (typeof value === 'string') {
+    const trimmed = value.trim();
+    return trimmed.length ? trimmed : null;
+  }
+  if (typeof value === 'number' && Number.isFinite(value)) {
+    return String(value);
+  }
+  if (value instanceof Date && !Number.isNaN(value.getTime())) {
+    return value.toISOString();
+  }
+  return null;
+};
+
+const sanitizeKey = (key: string) => key.replace(/[^a-z0-9]/gi, '').toLowerCase();
+
+const extractValueByPatterns = (source: unknown, patterns: string[]): string | null => {
+  if (!patterns || !patterns.length) return null;
+  const normalizedPatterns = patterns.map(sanitizeKey).filter(Boolean);
+  if (!normalizedPatterns.length) return null;
+
+  const stack: unknown[] = [source];
+  const visited = new WeakSet<object>();
+
+  while (stack.length) {
+    const current = stack.pop();
+    if (!current || typeof current !== 'object') continue;
+    const currentObj = current as object;
+    if (visited.has(currentObj)) continue;
+    visited.add(currentObj);
+
+    if (Array.isArray(current)) {
+      for (const item of current) {
+        if (item && typeof item === 'object') {
+          stack.push(item);
+        } else {
+          const candidate = sanitizeTextValue(item);
+          if (candidate) return candidate;
+        }
+      }
+      continue;
+    }
+
+    for (const [key, value] of Object.entries(current)) {
+      const normalizedKey = sanitizeKey(key);
+      if (normalizedPatterns.some((pattern) => normalizedKey.includes(pattern))) {
+        const candidate = sanitizeTextValue(value);
+        if (candidate) return candidate;
+      }
+      if (value && typeof value === 'object') {
+        stack.push(value);
+      } else {
+        const candidate = sanitizeTextValue(value);
+        if (candidate && normalizedPatterns.some((pattern) => normalizedKey.includes(pattern))) {
+          return candidate;
+        }
+      }
     }
   }
+
+  return null;
+};
+
+const pickTextValue = (source: unknown, paths: string[], patterns: string[]): string | null => {
+  for (const path of paths) {
+    const candidate = sanitizeTextValue(resolvePathValue(source, path));
+    if (candidate) return candidate;
+  }
+
+  const patternCandidate = extractValueByPatterns(source, patterns);
+  if (patternCandidate) return patternCandidate;
+
   return null;
 };
 
@@ -192,6 +253,18 @@ const NF_NUMBER_FIELDS = [
   'delivery.nf_number',
   'invoice.number',
   'document.number',
+  'metadata.nf_number',
+  'metadata.document_number',
+  'documento.numero',
+];
+
+const NF_NUMBER_PATTERNS = [
+  'nfnumber',
+  'nota',
+  'fiscal',
+  'documentnumber',
+  'numerodocumento',
+  'numeronota',
 ];
 
 const CLIENT_NAME_FIELDS = [
@@ -206,6 +279,20 @@ const CLIENT_NAME_FIELDS = [
   'receiver.name',
   'recipient.name',
   'consignee.name',
+  'metadata.client_name',
+  'metadata.customer_name',
+  'cliente.nome',
+];
+
+const CLIENT_NAME_PATTERNS = [
+  'clientname',
+  'customer',
+  'destinatario',
+  'receiver',
+  'recipient',
+  'consignee',
+  'empresa',
+  'cliente',
 ];
 
 const DRIVER_NAME_FIELDS = [
@@ -228,6 +315,15 @@ const DRIVER_NAME_FIELDS = [
   'actor.full_name',
   'delivery.driver_name',
   'delivery.driver.full_name',
+  'metadata.driver_name',
+  'metadata.motorista',
+];
+
+const DRIVER_NAME_PATTERNS = [
+  'drivername',
+  'motorista',
+  'condutor',
+  'driver',
 ];
 
 const ADDRESS_FIELDS = [
@@ -244,8 +340,40 @@ const ADDRESS_FIELDS = [
   'address.full',
   'delivery.destination',
   'destination.full_address',
+  'metadata.address',
+  'metadata.delivery_address',
+  'delivery.address',
+  'endereco.completo',
 ];
 
+const ADDRESS_PATTERNS = [
+  'address',
+  'endereco',
+  'destino',
+  'local',
+  'logradouro',
+  'deliveryaddress',
+];
+
+const DATE_FIELDS = [
+  'created_at',
+  'createdAt',
+  'delivery_date_actual',
+  'deliveryDateActual',
+  'delivery_date_expected',
+  'deliveryDateExpected',
+  'date',
+  'timestamp',
+  'metadata.created_at',
+];
+
+const DATE_PATTERNS = [
+  'createdat',
+  'data',
+  'date',
+  'timestamp',
+  'deliverydate',
+];
 const TODAY_DELIVERIES_PAGE_SIZE_DESKTOP = 10;
 const TODAY_DELIVERIES_PAGE_SIZE_MOBILE = 3;
 const EMPTY_TODAY_DELIVERIES_LIST: TodayDelivery[] = [];
@@ -887,13 +1015,6 @@ export const SupervisorDashboard = () => {
 
       if (response.success && Array.isArray(response.data)) {
         const todayIso = new Date().toISOString().slice(0, 10);
-        const normalizeString = (value: unknown, fallback: string) => {
-          if (typeof value === 'string') {
-            const trimmed = value.trim();
-            return trimmed.length ? trimmed : fallback;
-          }
-          return fallback;
-        };
         const toTimestamp = (value: string) => {
           const parsed = new Date(value);
           return Number.isNaN(parsed.getTime()) ? 0 : parsed.getTime();
@@ -901,24 +1022,16 @@ export const SupervisorDashboard = () => {
 
         const deliveriesData = (response.data as Array<Record<string, unknown>>).map((item) => {
           const createdAt =
-            pickTextValue(item, [
-              'created_at',
-              'createdAt',
-              'delivery_date_actual',
-              'deliveryDateActual',
-              'delivery_date_expected',
-              'deliveryDateExpected',
-              'timestamp',
-            ]) || '';
+            pickTextValue(item, DATE_FIELDS, DATE_PATTERNS) || '';
           const hasReceipt = Boolean(item['has_receipt']);
           const status = typeof item['status'] === 'string' ? item['status'] : '';
-          const nfNumber = pickTextValue(item, NF_NUMBER_FIELDS) || 'N/A';
+          const nfNumber = pickTextValue(item, NF_NUMBER_FIELDS, NF_NUMBER_PATTERNS) || 'N/A';
           const clientName =
-            pickTextValue(item, CLIENT_NAME_FIELDS) || 'Cliente não identificado';
+            pickTextValue(item, CLIENT_NAME_FIELDS, CLIENT_NAME_PATTERNS) || 'Cliente não identificado';
           const driverName =
-            pickTextValue(item, DRIVER_NAME_FIELDS) || 'Sem motorista';
+            pickTextValue(item, DRIVER_NAME_FIELDS, DRIVER_NAME_PATTERNS) || 'Sem motorista';
           const address =
-            pickTextValue(item, ADDRESS_FIELDS) || 'Endereço não informado';
+            pickTextValue(item, ADDRESS_FIELDS, ADDRESS_PATTERNS) || 'Endereço não informado';
 
           return {
             id: String(item['id'] ?? item['delivery_id'] ?? item['deliveryId'] ?? ''),
@@ -1003,38 +1116,32 @@ export const SupervisorDashboard = () => {
       const response = await apiService.getCanhotos(Object.keys(filters).length ? filters : undefined);
 
       if (response.success && Array.isArray(response.data)) {
-        const normalizeString = (value: unknown, fallback: string) => {
-          if (typeof value === 'string') return value.trim() || fallback;
-          return fallback;
-        };
-
         const deliveriesData = (response.data as Array<Record<string, unknown>>).map((item) => {
-          // Accept multiple possible API shapes: some endpoints return `id`, others `delivery_id`.
           const rawId = item['id'] ?? item['delivery_id'] ?? item['deliveryId'];
           const hasReceipt = Boolean(item['receipt_id'] ?? item['receiptId'] ?? item['dr_id'] ?? item['dr']);
-
-          // NF can be provided under different keys depending on backend version
-          const nfRaw = item['nf_number'] ?? item['nfNumber'] ?? item['nf'] ?? null;
-
-          // driver name may come from different properties (driver_name, driverName, driver)
-          const driverRaw = item['driver_name'] ?? item['driverName'] ?? item['driver'] ?? item['driver_full_name'] ?? null;
-
-          // image URL may be under different keys and we prefer image_url > gcs_path > file_path
           const imageUrl = item['image_url'] ?? item['imageUrl'] ?? item['gcs_path'] ?? item['gcsPath'] ?? item['file_path'] ?? item['filePath'] ?? null;
           const filenameRaw = item['filename'] ?? item['file_name'] ?? item['fileName'] ?? null;
 
+          const nfNumber = pickTextValue(item, NF_NUMBER_FIELDS, NF_NUMBER_PATTERNS) || 'N/A';
+          const clientName =
+            pickTextValue(item, CLIENT_NAME_FIELDS, CLIENT_NAME_PATTERNS) || 'Cliente não identificado';
+          const driverName =
+            pickTextValue(item, DRIVER_NAME_FIELDS, DRIVER_NAME_PATTERNS) || 'Sem motorista';
+          const address =
+            pickTextValue(item, ADDRESS_FIELDS, ADDRESS_PATTERNS) || 'Endereço não informado';
+          const createdAt = pickTextValue(item, DATE_FIELDS, DATE_PATTERNS) || '';
+
           return {
             id: String(rawId ?? ''),
-            nfNumber: normalizeString(nfRaw, 'N/A'),
-            clientName: normalizeString(item['client_name'] ?? item['client_name_extracted'], 'Cliente não identificado'),
-            driverName: normalizeString(driverRaw, 'Sem motorista'),
-            address: normalizeString(item['delivery_address'] ?? item['client_address'], 'Endereço não informado'),
+            nfNumber,
+            clientName,
+            driverName,
+            address,
             statusLabel: formatDeliveryStatus(item['status'] as string, hasReceipt),
-            createdAt: typeof item['date'] === 'string' ? item['date'] : (typeof item['created_at'] === 'string' ? item['created_at'] : ''),
+            createdAt,
             receipt_id: (item['receipt_id'] ?? item['receiptId']) ? String(item['receipt_id'] ?? item['receiptId']) : null,
             receipt_image_url: imageUrl ? String(imageUrl) : null,
             filename: filenameRaw ? String(filenameRaw) : null,
-            // include optional ids so we can prioritize filtered items on the client
             driver_id: (item['driver_id'] ?? item['driverId'] ?? item['driver']) ? String(item['driver_id'] ?? item['driverId'] ?? item['driver']) : null,
             company_id: (item['company_id'] ?? item['companyId'] ?? item['company']) ? String(item['company_id'] ?? item['companyId'] ?? item['company']) : null,
           } as TodayDelivery & { receipt_id: string | null; receipt_image_url: string | null; filename: string | null; driver_id?: string | null; company_id?: string | null };
@@ -1356,23 +1463,15 @@ export const SupervisorDashboard = () => {
         if (Array.isArray(deliveriesList)) {
           const mapped: TodayDelivery[] = deliveriesList.map((item: any) => {
             const createdAt =
-              pickTextValue(item, [
-                'created_at',
-                'createdAt',
-                'delivery_date_actual',
-                'deliveryDateActual',
-                'delivery_date_expected',
-                'deliveryDateExpected',
-                'timestamp',
-              ]) || '';
+              pickTextValue(item, DATE_FIELDS, DATE_PATTERNS) || '';
             const hasReceipt = Boolean(item.receipt_id || item.dr_id || item.receiptId || item.dr);
-            const nfNumber = pickTextValue(item, NF_NUMBER_FIELDS) || 'N/A';
+            const nfNumber = pickTextValue(item, NF_NUMBER_FIELDS, NF_NUMBER_PATTERNS) || 'N/A';
             const clientName =
-              pickTextValue(item, CLIENT_NAME_FIELDS) || 'Cliente não identificado';
+              pickTextValue(item, CLIENT_NAME_FIELDS, CLIENT_NAME_PATTERNS) || 'Cliente não identificado';
             const driverName =
-              pickTextValue(item, DRIVER_NAME_FIELDS) || 'Sem motorista';
+              pickTextValue(item, DRIVER_NAME_FIELDS, DRIVER_NAME_PATTERNS) || 'Sem motorista';
             const address =
-              pickTextValue(item, ADDRESS_FIELDS) || 'Endereço não informado';
+              pickTextValue(item, ADDRESS_FIELDS, ADDRESS_PATTERNS) || 'Endereço não informado';
 
             return {
               id: String(item.id ?? item.delivery_id ?? item.deliveryId ?? ''),

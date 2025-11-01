@@ -96,6 +96,248 @@ const formatRelativeTime = (timestamp?: string | null) => {
   return `Ha ${diffDays} d`;
 };
 
+
+const resolvePathValue = (source: unknown, path: string): unknown => {
+  if (!source || typeof source !== 'object') return null;
+  const segments = path.split('.');
+  let current: any = source;
+  for (const segment of segments) {
+    if (current && typeof current === 'object' && segment in current) {
+      current = current[segment as keyof typeof current];
+    } else {
+      return null;
+    }
+  }
+  return current;
+};
+
+const sanitizeTextValue = (value: unknown): string | null => {
+  if (typeof value === 'string') {
+    const trimmed = value.trim();
+    return trimmed.length ? trimmed : null;
+  }
+  if (typeof value === 'number' && Number.isFinite(value)) {
+    return String(value);
+  }
+  if (value instanceof Date && !Number.isNaN(value.getTime())) {
+    return value.toISOString();
+  }
+  return null;
+};
+
+const sanitizeKey = (key: string) => key.replace(/[^a-z0-9]/gi, '').toLowerCase();
+
+const extractValueByPatterns = (source: unknown, patterns: string[]): string | null => {
+  if (!patterns || !patterns.length) return null;
+  const normalizedPatterns = patterns.map(sanitizeKey).filter(Boolean);
+  if (!normalizedPatterns.length) return null;
+
+  const stack: unknown[] = [source];
+  const visited = new WeakSet<object>();
+
+  while (stack.length) {
+    const current = stack.pop();
+    if (!current || typeof current !== 'object') continue;
+    const currentObj = current as object;
+    if (visited.has(currentObj)) continue;
+    visited.add(currentObj);
+
+    if (Array.isArray(current)) {
+      for (const item of current) {
+        if (item && typeof item === 'object') {
+          stack.push(item);
+        } else {
+          const candidate = sanitizeTextValue(item);
+          if (candidate) return candidate;
+        }
+      }
+      continue;
+    }
+
+    for (const [key, value] of Object.entries(current)) {
+      const normalizedKey = sanitizeKey(key);
+      if (normalizedPatterns.some((pattern) => normalizedKey.includes(pattern))) {
+        const candidate = sanitizeTextValue(value);
+        if (candidate) return candidate;
+      }
+      if (value && typeof value === 'object') {
+        stack.push(value);
+      } else {
+        const candidate = sanitizeTextValue(value);
+        if (candidate && normalizedPatterns.some((pattern) => normalizedKey.includes(pattern))) {
+          return candidate;
+        }
+      }
+    }
+  }
+
+  return null;
+};
+
+const pickTextValue = (source: unknown, paths: string[], patterns: string[]): string | null => {
+  for (const path of paths) {
+    const candidate = sanitizeTextValue(resolvePathValue(source, path));
+    if (candidate) return candidate;
+  }
+
+  const patternCandidate = extractValueByPatterns(source, patterns);
+  if (patternCandidate) return patternCandidate;
+
+  return null;
+};
+
+const NF_NUMBER_FIELDS = [
+  'nf_number',
+  'nfNumber',
+  'nf',
+  'nfe',
+  'nota_fiscal',
+  'notaFiscal',
+  'invoice_number',
+  'delivery.nfNumber',
+  'delivery.nf_number',
+  'invoice.number',
+  'document.number',
+  'metadata.nf_number',
+  'metadata.document_number',
+  'documento.numero',
+];
+
+const NF_NUMBER_PATTERNS = [
+  'nfnumber',
+  'nota',
+  'fiscal',
+  'documentnumber',
+  'numerodocumento',
+  'numeronota',
+];
+
+const CLIENT_NAME_FIELDS = [
+  'client_name',
+  'clientName',
+  'client_name_extracted',
+  'client.name',
+  'client.fantasy_name',
+  'client.trade_name',
+  'customer.name',
+  'destinatario.nome',
+  'receiver.name',
+  'recipient.name',
+  'consignee.name',
+  'metadata.client_name',
+  'metadata.customer_name',
+  'cliente.nome',
+];
+
+const CLIENT_NAME_PATTERNS = [
+  'clientname',
+  'customer',
+  'destinatario',
+  'receiver',
+  'recipient',
+  'consignee',
+  'empresa',
+  'cliente',
+];
+
+const DRIVER_NAME_FIELDS = [
+  'driver_name',
+  'driverName',
+  'driver_full_name',
+  'driver.full_name',
+  'driver.name',
+  'driver.user.full_name',
+  'driver.user.name',
+  'driver_details.name',
+  'assigned_driver_name',
+  'assignedDriver.name',
+  'metadata.driver_name',
+  'driverInfo.name',
+  'driverRecord.name',
+  'motorista.nome',
+];
+
+const DRIVER_NAME_PATTERNS = [
+  'drivername',
+  'motorista',
+  'condutor',
+  'driver',
+];
+
+const ADDRESS_FIELDS = [
+  'delivery_address',
+  'deliveryAddress',
+  'client_address',
+  'clientAddress',
+  'address',
+  'client.address',
+  'destinatario.endereco',
+  'destination.address',
+  'location.address',
+  'route.destination_address',
+  'address.full',
+  'delivery.destination',
+  'destination.full_address',
+  'metadata.address',
+  'metadata.delivery_address',
+  'delivery.address',
+];
+
+const ADDRESS_PATTERNS = [
+  'address',
+  'endereco',
+  'destino',
+  'logradouro',
+];
+
+const DATE_FIELDS = [
+  'created_at',
+  'createdAt',
+  'delivery_date_actual',
+  'deliveryDateActual',
+  'delivery_date_expected',
+  'deliveryDateExpected',
+  'date',
+  'timestamp',
+  'metadata.created_at',
+];
+
+const DATE_PATTERNS = [
+  'createdat',
+  'data',
+  'date',
+  'timestamp',
+  'deliverydate',
+];
+
+
+
+const formatDeliveryStatus = (status?: string, hasReceipt?: boolean) => {
+  const normalized = (status || '').toUpperCase();
+  if (hasReceipt || normalized === 'DELIVERED' || normalized === 'ENTREGUE') {
+    return 'Realizada';
+  }
+  switch (normalized) {
+    case 'IN_TRANSIT':
+    case 'EM_ANDAMENTO':
+      return 'Em andamento';
+    case 'PENDING':
+    case 'PENDENTE':
+      return 'Pendente';
+    case 'REATTEMPTED':
+      return 'Reentrega';
+    case 'PROBLEM':
+      return 'Problema';
+    case 'REFUSED':
+      return 'Recusada';
+    case 'CANCELLED':
+    case 'CANCELED':
+      return 'Cancelada';
+    default:
+      return status || 'Indefinido';
+  }
+};
+
 export const AdminDashboard = () => {
   const [stats, setStats] = useState({
     totalEntregas: 0,
@@ -242,14 +484,29 @@ export const AdminDashboard = () => {
     try {
       const response = await apiService.getCanhotos();
       if (response.success && Array.isArray(response.data)) {
-        const deliveriesData = (response.data as any[]).map(item => ({
-          id: String(item.id ?? item.delivery_id ?? ''),
-          nfNumber: String(item.nf_number ?? item.nfNumber ?? 'N/A'),
-          clientName: String(item.client_name ?? item.client_name_extracted ?? 'Cliente não identificado'),
-          driverName: String(item.driver_name ?? 'Sem motorista'),
-          createdAt: String(item.date ?? item.created_at ?? ''),
-          receipt_image_url: String(item.image_url ?? item.receipt_image_url ?? ''),
-        } as TodayDelivery));
+        const deliveriesData = (response.data as any[]).map(item => {
+          const hasReceipt = Boolean(item.receipt_id ?? item.receiptId ?? item.dr_id ?? item.dr);
+          const createdAt = pickTextValue(item, DATE_FIELDS, DATE_PATTERNS) || '';
+          const nfNumber = pickTextValue(item, NF_NUMBER_FIELDS, NF_NUMBER_PATTERNS) || 'N/A';
+          const clientName =
+            pickTextValue(item, CLIENT_NAME_FIELDS, CLIENT_NAME_PATTERNS) || 'Cliente não identificado';
+          const driverName =
+            pickTextValue(item, DRIVER_NAME_FIELDS, DRIVER_NAME_PATTERNS) || 'Sem motorista';
+          const address =
+            pickTextValue(item, ADDRESS_FIELDS, ADDRESS_PATTERNS) || 'Endereço não informado';
+          const statusLabel = formatDeliveryStatus(item.status as string, hasReceipt);
+
+          return {
+            id: String(item.id ?? item.delivery_id ?? ''),
+            nfNumber,
+            clientName,
+            driverName,
+            address,
+            statusLabel,
+            createdAt,
+            receipt_image_url: String(item.image_url ?? item.receipt_image_url ?? ''),
+          } as TodayDelivery;
+        });
         setFinishedDeliveries(deliveriesData);
       } else {
         toast({ title: 'Erro ao carregar canhotos', description: (response as any).error || 'Não foi possível buscar as entregas finalizadas.', variant: 'destructive' });
