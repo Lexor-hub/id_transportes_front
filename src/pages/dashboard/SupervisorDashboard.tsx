@@ -1035,18 +1035,20 @@ export const SupervisorDashboard = () => {
           return Number.isNaN(parsed.getTime()) ? 0 : parsed.getTime();
         };
 
+        // Lógica de extração de dados unificada, usando a mesma abordagem dos canhotos.
         const deliveriesData = (response.data as Array<Record<string, unknown>>).map((item) => {
           const hasReceipt = Boolean(item.has_receipt);
           const status = String(item.status || '');
+          const nfNumber = pickTextValue(item, NF_NUMBER_FIELDS, NF_NUMBER_PATTERNS) || 'N/A';
+          const clientName = pickTextValue(item, CLIENT_NAME_FIELDS, CLIENT_NAME_PATTERNS) || 'Cliente não identificado';
+          const driverName = pickTextValue(item, DRIVER_NAME_FIELDS, DRIVER_NAME_PATTERNS) || 'Sem motorista';
+          const address = pickTextValue(item, ADDRESS_FIELDS, ADDRESS_PATTERNS) || 'Endereço não informado';
+          const createdAt = pickTextValue(item, DATE_FIELDS, DATE_PATTERNS) || '';
 
           return {
             id: String(item['id'] ?? item['delivery_id'] ?? item['deliveryId'] ?? ''),
-            nfNumber: String(item.nf_number || 'N/A'),
-            clientName: String(item.client_name || 'Cliente não identificado'),
-            driverName: String(item.driver_name || 'Sem motorista'),
-            address: String(item.client_address || item.delivery_address || 'Endereço não informado'),
+            nfNumber, clientName, driverName, address, createdAt,
             statusLabel: formatDeliveryStatus(status, hasReceipt),
-            createdAt: String(item.created_at || ''),
           } as TodayDelivery;
         });
 
@@ -1766,7 +1768,7 @@ export const SupervisorDashboard = () => {
                   <Input
                     value={todayDeliveriesSearchTerm}
                     onChange={(event) => setTodayDeliveriesSearchTerm(event.target.value)}
-                    placeholder="Pesquisar NF, cliente, motorista ou endere?o..."
+                    placeholder="Pesquisar NF, cliente, motorista ou endereço..."
                     aria-label="Pesquisar entregas do dia"
                     className="pl-9"
                     disabled={deliveriesLoading}
@@ -1815,8 +1817,8 @@ export const SupervisorDashboard = () => {
                             <th className="py-2 pr-4 font-medium">Cliente</th>
                             <th className="py-2 pr-4 font-medium">Motorista</th>
                             <th className="py-2 pr-4 font-medium">Status</th>
-                            <th className="py-2 pr-4 font-medium">Hor?rio</th>
-                            <th className="py-2 font-medium">Endere?o</th>
+                            <th className="py-2 pr-4 font-medium">Horário</th>
+                            <th className="py-2 font-medium">Endereço</th>
                           </tr>
                         </thead>
                         <tbody>
