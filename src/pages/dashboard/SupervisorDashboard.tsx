@@ -525,6 +525,158 @@ const normalizeDeliveryRecord = (input: unknown): TodayDelivery => {
   };
 };
 
+const mergeDriverReportVehicles = (
+  current: DriverReportVehicle[] = [],
+  incoming: DriverReportVehicle[] = []
+): DriverReportVehicle[] => {
+  const registry = new Map<string, DriverReportVehicle>();
+
+  const keyForVehicle = (vehicle: DriverReportVehicle): string => {
+    const payload = {
+      vehicleId: vehicle.vehicleId ?? null,
+      plate: vehicle.plate ? String(vehicle.plate).toLowerCase() : null,
+      model: vehicle.model ? String(vehicle.model).toLowerCase() : null,
+      brand: vehicle.brand ? String(vehicle.brand).toLowerCase() : null,
+      label: vehicle.label ? String(vehicle.label).toLowerCase() : null,
+    };
+    return JSON.stringify(payload);
+  };
+
+  const addList = (list?: DriverReportVehicle[]) => {
+    if (!list) return;
+    list.forEach((vehicle) => {
+      if (!vehicle) return;
+      const key = keyForVehicle(vehicle);
+      if (!registry.has(key)) {
+        registry.set(key, { ...vehicle });
+      }
+    });
+  };
+
+  addList(current);
+  addList(incoming);
+  return Array.from(registry.values());
+};
+
+const normalizeDriverPerformanceReport = (
+  report: DriverPerformanceReport | null
+): DriverPerformanceReport | null => {
+  if (!report || !Array.isArray(report.drivers) || report.drivers.length === 0) {
+    return report;
+  }
+
+  const altKeyMap = new Map<string, string>();
+  const aggregates = new Map<string, DriverReportEntry>();
+
+  const buildAltKeys = (driver: DriverReportEntry): string[] => {
+    const keys: string[] = [];
+    if (driver.driverKey) keys.push(driver.driverKey);
+    if (driver.driverId) keys.push(`driver:${driver.driverId}`);
+    if (driver.userId) keys.push(`user:${driver.userId}`);
+    if (driver.username) keys.push(`username:${driver.username.trim().toLowerCase()}`);
+    if (driver.name) keys.push(`name:${driver.name.trim().toLowerCase()}`);
+    return keys;
+  };
+
+  const resolveCanonical = (keys: string[]): string | undefined => {
+    for (const key of keys) {
+      const canonical = altKeyMap.get(key);
+      if (canonical) return canonical;
+    }
+    return undefined;
+  };
+
+  const registerAltKeys = (canonical: string, keys: string[]) => {
+    keys.forEach((key) => {
+      if (key) {
+        altKeyMap.set(key, canonical);
+      }
+    });
+  };
+
+  report.drivers.forEach((driver, index) => {
+    const altKeys = buildAltKeys(driver);
+    let canonical = resolveCanonical(altKeys);
+    if (!canonical) {
+      canonical = altKeys[0] ?? `entry:${index}`;
+    }
+    altKeyMap.set(canonical, canonical);
+
+    let aggregate = aggregates.get(canonical);
+    if (!aggregate) {
+      aggregate = {
+        ...driver,
+        driverKey: driver.driverKey ?? canonical,
+        vehiclesToday: mergeDriverReportVehicles([], driver.vehiclesToday ?? []),
+        vehiclesMonth: mergeDriverReportVehicles([], driver.vehiclesMonth ?? []),
+      };
+      aggregates.set(canonical, aggregate);
+    } else {
+      aggregate.deliveriesToday += driver.deliveriesToday;
+      aggregate.deliveriesMonth += driver.deliveriesMonth;
+      aggregate.occurrencesToday += driver.occurrencesToday;
+      aggregate.occurrencesMonth += driver.occurrencesMonth;
+      aggregate.vehiclesToday = mergeDriverReportVehicles(aggregate.vehiclesToday, driver.vehiclesToday ?? []);
+      aggregate.vehiclesMonth = mergeDriverReportVehicles(aggregate.vehiclesMonth, driver.vehiclesMonth ?? []);
+      aggregate.isTopToday = aggregate.isTopToday || driver.isTopToday;
+      aggregate.rankToday = Math.min(aggregate.rankToday, driver.rankToday);
+
+      if (!aggregate.driverId && driver.driverId) aggregate.driverId = driver.driverId;
+      if (!aggregate.userId && driver.userId) aggregate.userId = driver.userId;
+      if (!aggregate.username && driver.username) aggregate.username = driver.username;
+      if ((!aggregate.name || aggregate.name === 'Motorista') && driver.name) aggregate.name = driver.name;
+    }
+
+    registerAltKeys(canonical, [...altKeys, driver.driverKey ?? '']);
+  });
+
+  const mergedDrivers = Array.from(aggregates.values()).map((driver) => ({
+    ...driver,
+    vehiclesToday: [...driver.vehiclesToday],
+    vehiclesMonth: [...driver.vehiclesMonth],
+  }));
+
+  mergedDrivers.sort((a, b) => {
+    if (b.deliveriesToday !== a.deliveriesToday) {
+      return b.deliveriesToday - a.deliveriesToday;
+    }
+    if (b.deliveriesMonth !== a.deliveriesMonth) {
+      return b.deliveriesMonth - a.deliveriesMonth;
+    }
+    return a.name.localeCompare(b.name, 'pt-BR');
+  });
+
+  mergedDrivers.forEach((driver, index) => {
+    driver.rankToday = index + 1;
+    driver.isTopToday = index === 0 && driver.deliveriesToday > 0;
+  });
+
+  const totalDeliveriesToday = mergedDrivers.reduce((sum, driver) => sum + driver.deliveriesToday, 0);
+  const totalDeliveriesMonth = mergedDrivers.reduce((sum, driver) => sum + driver.deliveriesMonth, 0);
+  const topDriver =
+    mergedDrivers.length && mergedDrivers[0].deliveriesToday > 0
+      ? {
+          driverKey: mergedDrivers[0].driverKey,
+          driverId: mergedDrivers[0].driverId,
+          userId: mergedDrivers[0].userId,
+          name: mergedDrivers[0].name,
+          deliveriesToday: mergedDrivers[0].deliveriesToday,
+        }
+      : null;
+
+  return {
+    ...report,
+    summary: {
+      ...report.summary,
+      totalDrivers: mergedDrivers.length,
+      totalDeliveriesToday,
+      totalDeliveriesMonth,
+      topDriver,
+    },
+    drivers: mergedDrivers,
+  };
+};
+
 const formatRelativeTime = (timestamp?: string | null) => {
   if (!timestamp) {
     return "Sem atualizacao";
@@ -1395,7 +1547,8 @@ export const SupervisorDashboard = () => {
     try {
       const response = await apiService.getDriverPerformanceReport();
       if (response.success) {
-        setDriverReportData(response.data as DriverPerformanceReport);
+        const normalized = normalizeDriverPerformanceReport(response.data as DriverPerformanceReport);
+        setDriverReportData(normalized);
       } else {
         setDriverReportData(null);
         toast({
