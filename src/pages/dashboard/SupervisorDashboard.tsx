@@ -59,6 +59,8 @@ type TodayDelivery = {
   receipt_id?: string | null;
   receipt_image_url?: string | null;
   filename?: string | null;
+  driver_id?: string | null;
+  company_id?: string | null;
 };
 
 type AlertItem = {
@@ -370,6 +372,20 @@ const ADDRESS_PATTERNS = [
   'deliveryaddress',
 ];
 
+const STATUS_FIELDS = [
+  'status',
+  'delivery_status',
+  'delivery.status',
+  'current_status',
+  'metadata.status',
+];
+
+const STATUS_PATTERNS = [
+  'status',
+  'situacao',
+  'estado',
+];
+
 const DATE_FIELDS = [
   'created_at',
   'createdAt',
@@ -437,6 +453,76 @@ const formatDateTime = (isoDate?: string) => {
     hour: '2-digit',
     minute: '2-digit',
   });
+};
+
+const normalizeDeliveryRecord = (input: unknown): TodayDelivery => {
+  const item = (input ?? {}) as Record<string, unknown>;
+
+  const rawId =
+    item['id'] ??
+    item['delivery_id'] ??
+    item['deliveryId'] ??
+    item['delivery_note_id'] ??
+    item['deliveryNoteId'] ??
+    item['note_id'];
+
+  const createdAt = pickTextValue(item, DATE_FIELDS, DATE_PATTERNS) || '';
+  const hasReceipt = Boolean(
+    item['has_receipt'] ??
+    item['receipt_id'] ??
+    item['receiptId'] ??
+    item['dr_id'] ??
+    item['dr'] ??
+    item['hasReceipt']
+  );
+
+  const statusValue =
+    typeof item['status'] === 'string'
+      ? item['status']
+      : pickTextValue(item, STATUS_FIELDS, STATUS_PATTERNS) || '';
+
+  const nfNumber = pickTextValue(item, NF_NUMBER_FIELDS, NF_NUMBER_PATTERNS) || 'N/A';
+  const clientName =
+    pickTextValue(item, CLIENT_NAME_FIELDS, CLIENT_NAME_PATTERNS) || 'Cliente não identificado';
+  const driverName =
+    pickTextValue(item, DRIVER_NAME_FIELDS, DRIVER_NAME_PATTERNS) || 'Sem motorista';
+  const address =
+    pickTextValue(item, ADDRESS_FIELDS, ADDRESS_PATTERNS) || 'Endereço não informado';
+
+  const receiptIdRaw = item['receipt_id'] ?? item['receiptId'] ?? item['dr_id'] ?? item['dr'];
+  const imageUrl =
+    item['receipt_image_url'] ??
+    item['image_url'] ??
+    item['imageUrl'] ??
+    item['gcs_path'] ??
+    item['gcsPath'] ??
+    item['file_path'] ??
+    item['filePath'] ??
+    null;
+  const filenameRaw = item['filename'] ?? item['file_name'] ?? item['fileName'] ?? null;
+
+  const driverIdRaw =
+    item['driver_id'] ??
+    item['driverId'] ??
+    item['driver'] ??
+    item['driver_user_id'] ??
+    item['driverUserId'];
+  const companyIdRaw = item['company_id'] ?? item['companyId'] ?? item['company'];
+
+  return {
+    id: String(rawId ?? ''),
+    nfNumber,
+    clientName,
+    driverName,
+    address,
+    statusLabel: formatDeliveryStatus(statusValue, hasReceipt),
+    createdAt,
+    receipt_id: receiptIdRaw != null ? String(receiptIdRaw) : null,
+    receipt_image_url: imageUrl ? String(imageUrl) : null,
+    filename: filenameRaw ? String(filenameRaw) : null,
+    driver_id: driverIdRaw != null ? String(driverIdRaw) : null,
+    company_id: companyIdRaw != null ? String(companyIdRaw) : null,
+  };
 };
 
 const formatRelativeTime = (timestamp?: string | null) => {
@@ -1036,21 +1122,8 @@ export const SupervisorDashboard = () => {
         };
 
         // Lógica de extração de dados unificada, usando a mesma abordagem dos canhotos.
-        const deliveriesData = (response.data as Array<Record<string, unknown>>).map((item) => {
-          const hasReceipt = Boolean(item.has_receipt);
-          const status = String(item.status || '');
-          const nfNumber = pickTextValue(item, NF_NUMBER_FIELDS, NF_NUMBER_PATTERNS) || 'N/A';
-          const clientName = pickTextValue(item, CLIENT_NAME_FIELDS, CLIENT_NAME_PATTERNS) || 'Cliente não identificado';
-          const driverName = pickTextValue(item, DRIVER_NAME_FIELDS, DRIVER_NAME_PATTERNS) || 'Sem motorista';
-          const address = pickTextValue(item, ADDRESS_FIELDS, ADDRESS_PATTERNS) || 'Endereço não informado';
-          const createdAt = pickTextValue(item, DATE_FIELDS, DATE_PATTERNS) || '';
-
-          return {
-            id: String(item['id'] ?? item['delivery_id'] ?? item['deliveryId'] ?? ''),
-            nfNumber, clientName, driverName, address, createdAt,
-            statusLabel: formatDeliveryStatus(status, hasReceipt),
-          } as TodayDelivery;
-        });
+        const deliveriesData = (response.data as Array<Record<string, unknown>>)
+          .map((item) => normalizeDeliveryRecord(item));
 
         const todaysDeliveries = deliveriesData.filter((delivery) =>
           isSameDayIso(delivery.createdAt, todayIso)
@@ -1124,36 +1197,8 @@ export const SupervisorDashboard = () => {
       const response = await apiService.getCanhotos(Object.keys(filters).length ? filters : undefined);
 
       if (response.success && Array.isArray(response.data)) {
-        const deliveriesData = (response.data as Array<Record<string, unknown>>).map((item) => {
-          const rawId = item['id'] ?? item['delivery_id'] ?? item['deliveryId'];
-          const hasReceipt = Boolean(item['receipt_id'] ?? item['receiptId'] ?? item['dr_id'] ?? item['dr']);
-          const imageUrl = item['image_url'] ?? item['imageUrl'] ?? item['gcs_path'] ?? item['gcsPath'] ?? item['file_path'] ?? item['filePath'] ?? null;
-          const filenameRaw = item['filename'] ?? item['file_name'] ?? item['fileName'] ?? null;
-
-          const nfNumber = pickTextValue(item, NF_NUMBER_FIELDS, NF_NUMBER_PATTERNS) || 'N/A';
-          const clientName =
-            pickTextValue(item, CLIENT_NAME_FIELDS, CLIENT_NAME_PATTERNS) || 'Cliente não identificado';
-          const driverName =
-            pickTextValue(item, DRIVER_NAME_FIELDS, DRIVER_NAME_PATTERNS) || 'Sem motorista';
-          const address =
-            pickTextValue(item, ADDRESS_FIELDS, ADDRESS_PATTERNS) || 'Endereço não informado';
-          const createdAt = pickTextValue(item, DATE_FIELDS, DATE_PATTERNS) || '';
-
-          return {
-            id: String(rawId ?? ''),
-            nfNumber,
-            clientName,
-            driverName,
-            address,
-            statusLabel: formatDeliveryStatus(item['status'] as string, hasReceipt),
-            createdAt,
-            receipt_id: (item['receipt_id'] ?? item['receiptId']) ? String(item['receipt_id'] ?? item['receiptId']) : null,
-            receipt_image_url: imageUrl ? String(imageUrl) : null,
-            filename: filenameRaw ? String(filenameRaw) : null,
-            driver_id: (item['driver_id'] ?? item['driverId'] ?? item['driver']) ? String(item['driver_id'] ?? item['driverId'] ?? item['driver']) : null,
-            company_id: (item['company_id'] ?? item['companyId'] ?? item['company']) ? String(item['company_id'] ?? item['companyId'] ?? item['company']) : null,
-          } as TodayDelivery & { receipt_id: string | null; receipt_image_url: string | null; filename: string | null; driver_id?: string | null; company_id?: string | null };
-        });
+        const deliveriesData = (response.data as Array<Record<string, unknown>>)
+          .map((item) => normalizeDeliveryRecord(item));
 
         // If filters were provided, move matching items to the top of the list
         let resultList = deliveriesData;
@@ -1469,32 +1514,13 @@ export const SupervisorDashboard = () => {
         // If backend returned a list of today's deliveries, normalize and store it
         const deliveriesList = kpis?.today_deliveries?.list;
         if (Array.isArray(deliveriesList)) {
-          const mapped: TodayDelivery[] = deliveriesList.map((item: any) => {
-            const createdAt =
-              pickTextValue(item, DATE_FIELDS, DATE_PATTERNS) || '';
-            const hasReceipt = Boolean(item.receipt_id || item.dr_id || item.receiptId || item.dr);
-            const nfNumber = pickTextValue(item, NF_NUMBER_FIELDS, NF_NUMBER_PATTERNS) || 'N/A';
-            const clientName =
-              pickTextValue(item, CLIENT_NAME_FIELDS, CLIENT_NAME_PATTERNS) || 'Cliente não identificado';
-            const driverName =
-              pickTextValue(item, DRIVER_NAME_FIELDS, DRIVER_NAME_PATTERNS) || 'Sem motorista';
-            const address =
-              pickTextValue(item, ADDRESS_FIELDS, ADDRESS_PATTERNS) || 'Endereço não informado';
-
-            return {
-              id: String(item.id ?? item.delivery_id ?? item.deliveryId ?? ''),
-              nfNumber,
-              clientName,
-              driverName,
-              address,
-              statusLabel: formatDeliveryStatus(item.status, hasReceipt),
-              createdAt,
-            } as TodayDelivery;
-          }).sort((a, b) => {
-            const ta = a.createdAt ? new Date(a.createdAt).getTime() : 0;
-            const tb = b.createdAt ? new Date(b.createdAt).getTime() : 0;
-            return tb - ta;
-          });
+          const mapped: TodayDelivery[] = deliveriesList
+            .map((item: any) => normalizeDeliveryRecord(item))
+            .sort((a, b) => {
+              const ta = a.createdAt ? new Date(a.createdAt).getTime() : 0;
+              const tb = b.createdAt ? new Date(b.createdAt).getTime() : 0;
+              return tb - ta;
+            });
 
           setTodayDeliveries(mapped);
           setStats(prev => ({
